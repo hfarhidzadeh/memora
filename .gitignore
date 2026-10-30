@@ -1,0 +1,12 @@
+# Downloaded benchmark data (277 MB; see README to download and convert)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Local memory databases
+*.sqlite3

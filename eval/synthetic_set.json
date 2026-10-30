@@ -1,0 +1,48 @@
+{
+  "description": "Synthetic sanity-check set written alongside the code. Queries tagged needs_link, word_form and paraphrase were built so their relevant memories share no words with the query, so they test that each mechanism works, not that it helps on real conversations. Replace with your own labelled examples (no patient data) for a real benchmark.",
+  "memories": {
+    "db_pref": {"content": "Prefer SQLite for local memory storage.", "kind": "user_preference"},
+    "db_local": {"content": "Agent memory must never leave the user's machine.", "kind": "technical_constraint"},
+    "api_v2": {"content": "Use the v2 billing endpoint for invoices.", "kind": "correction"},
+    "api_auth": {"content": "Requests to that service need a rotating bearer token.", "kind": "technical_constraint"},
+    "style": {"content": "The user wants concise answers with bullet points.", "kind": "user_preference"},
+    "deadline": {"content": "Draft of the grant report is due on Friday.", "kind": "task"},
+    "grant_budget": {"content": "Budget table must follow the funder template.", "kind": "technical_constraint"},
+    "plots": {"content": "Plots should use colorblind safe palettes.", "kind": "user_preference"},
+    "cluster": {"content": "The cluster runs Ubuntu twenty two.", "kind": "fact"},
+    "meeting": {"content": "The weekly meeting moved to Thursday afternoon.", "kind": "episode"},
+    "lunch": {"content": "Lunch order was pasta.", "kind": "episode"},
+    "reviewer": {"content": "The reviewer asked about sample size.", "kind": "episode"}
+  },
+  "links": [
+    {"source": "db_pref", "target": "db_local", "relation": "supports"},
+    {"source": "api_v2", "target": "api_auth", "relation": "depends_on"},
+    {"source": "deadline", "target": "grant_budget", "relation": "related_to"}
+  ],
+  "queries": [
+    {"query": "SQLite", "relevant": ["db_pref", "db_local"], "tags": ["needs_link"]},
+    {"query": "billing endpoint invoices", "relevant": ["api_v2", "api_auth"], "tags": ["needs_link"]},
+    {"query": "grant report due", "relevant": ["deadline", "grant_budget"], "tags": ["needs_link"]},
+    {"query": "concise bullet answers", "relevant": ["style"], "tags": ["direct"]},
+    {"query": "colorblind palettes", "relevant": ["plots"], "tags": ["direct"]},
+    {"query": "ubuntu cluster", "relevant": ["cluster"], "tags": ["direct"]},
+    {"query": "invoice", "relevant": ["api_v2"], "tags": ["word_form"]},
+    {"query": "budgets", "relevant": ["grant_budget"], "tags": ["word_form"]},
+    {"query": "palette", "relevant": ["plots"], "tags": ["word_form"]},
+    {"query": "preferred reply length", "relevant": ["style"], "tags": ["paraphrase"]},
+    {"query": "server operating system", "relevant": ["cluster"], "tags": ["paraphrase"]},
+    {"query": "accessible chart colours", "relevant": ["plots"], "tags": ["paraphrase"]}
+  ],
+  "prune": {
+    "settings": {"threshold": 0.1, "min_age_days": 30, "decay_days": 90},
+    "cases": {
+      "stale_episode": {"kind": "episode", "importance": 0.2, "confidence": 0.5, "idle_days": 200, "access_count": 0, "expected": "prune"},
+      "old_low_value": {"kind": "fact", "importance": 0.5, "confidence": 0.6, "idle_days": 150, "access_count": 0, "expected": "prune"},
+      "fresh": {"kind": "episode", "importance": 0.2, "confidence": 0.5, "idle_days": 3, "access_count": 0, "expected": "keep"},
+      "protected": {"kind": "technical_constraint", "importance": 0.95, "confidence": 0.2, "idle_days": 400, "access_count": 0, "expected": "keep"},
+      "mid_value": {"kind": "fact", "importance": 0.6, "confidence": 0.9, "idle_days": 40, "access_count": 0, "expected": "keep"},
+      "idle_pair_unaccessed": {"kind": "fact", "importance": 0.4, "confidence": 0.5, "idle_days": 100, "access_count": 0, "expected": "prune"},
+      "idle_pair_accessed": {"kind": "fact", "importance": 0.4, "confidence": 0.5, "idle_days": 100, "access_count": 50, "expected": "keep"}
+    }
+  }
+}

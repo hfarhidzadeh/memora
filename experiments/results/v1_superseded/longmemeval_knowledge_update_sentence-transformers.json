@@ -1,0 +1,392 @@
+{
+  "suite": "data/longmemeval/knowledge_update.jsonl",
+  "questions": 72,
+  "questions_with_update": 70,
+  "seeds": 10,
+  "embedder": "sentence-transformers",
+  "summaries_all_questions": {
+    "lexical, updates not applied": {
+      "questions": 72,
+      "rr": 0.5400022045855379,
+      "recall@1": 0.2777777777777778,
+      "recall@3": 0.7777777777777778,
+      "recall@5": 0.875,
+      "recall@10": 0.9305555555555556,
+      "stale_first": 0.4142857142857143
+    },
+    "lexical": {
+      "questions": 72,
+      "rr": 0.67622905643739,
+      "recall@1": 0.5,
+      "recall@3": 0.8194444444444444,
+      "recall@5": 0.875,
+      "recall@10": 0.9583333333333334,
+      "stale_first": 0.0
+    },
+    "lexical + links (keep)": {
+      "questions": 72,
+      "rr": 0.6716435185185187,
+      "recall@1": 0.4861111111111111,
+      "recall@3": 0.8472222222222222,
+      "recall@5": 0.9027777777777778,
+      "recall@10": 0.9444444444444444,
+      "stale_first": 0.0
+    },
+    "lexical + links (copy)": {
+      "questions": 72,
+      "rr": 0.6854332010582013,
+      "recall@1": 0.5,
+      "recall@3": 0.8333333333333334,
+      "recall@5": 0.9027777777777778,
+      "recall@10": 0.9722222222222222,
+      "stale_first": 0.0
+    },
+    "lexical + links (topic)": {
+      "questions": 72,
+      "rr": 0.6854332010582013,
+      "recall@1": 0.5,
+      "recall@3": 0.8333333333333334,
+      "recall@5": 0.9027777777777778,
+      "recall@10": 0.9722222222222222,
+      "stale_first": 0.0
+    },
+    "lexical + wrong links (keep) [control]": {
+      "questions": 72,
+      "rr": 0.6688828262786597,
+      "recall@1": 0.4833333333333333,
+      "recall@3": 0.825,
+      "recall@5": 0.8833333333333333,
+      "recall@10": 0.9569444444444445,
+      "stale_first": 0.0
+    },
+    "lexical + planted links (keep) [control]": {
+      "questions": 72,
+      "rr": 0.6716435185185187,
+      "recall@1": 0.4861111111111111,
+      "recall@3": 0.8472222222222222,
+      "recall@5": 0.9027777777777778,
+      "recall@10": 0.9444444444444444,
+      "stale_first": 0.0
+    },
+    "lexical + wrong links (topic) [control]": {
+      "questions": 72,
+      "rr": 0.6754541446208113,
+      "recall@1": 0.48888888888888893,
+      "recall@3": 0.8333333333333334,
+      "recall@5": 0.8888888888888888,
+      "recall@10": 0.9611111111111111,
+      "stale_first": 0.0
+    },
+    "lexical + planted links (topic) [control]": {
+      "questions": 72,
+      "rr": 0.692939814814815,
+      "recall@1": 0.5,
+      "recall@3": 0.8611111111111112,
+      "recall@5": 0.9444444444444444,
+      "recall@10": 0.9861111111111112,
+      "stale_first": 0.0
+    },
+    "hybrid, updates not applied": {
+      "questions": 72,
+      "rr": 0.49957010582010564,
+      "recall@1": 0.25,
+      "recall@3": 0.6944444444444444,
+      "recall@5": 0.9027777777777778,
+      "recall@10": 0.9861111111111112,
+      "stale_first": 0.5285714285714286
+    },
+    "hybrid": {
+      "questions": 72,
+      "rr": 0.6181878306878309,
+      "recall@1": 0.4027777777777778,
+      "recall@3": 0.8055555555555556,
+      "recall@5": 0.9444444444444444,
+      "recall@10": 0.9861111111111112,
+      "stale_first": 0.0
+    },
+    "hybrid, permuted vectors [control]": {
+      "questions": 72,
+      "rr": 0.14205467372134034,
+      "recall@1": 0.027777777777777783,
+      "recall@3": 0.08611111111111108,
+      "recall@5": 0.25,
+      "recall@10": 0.6736111111111112,
+      "stale_first": 0.0
+    },
+    "hybrid + links (keep)": {
+      "questions": 72,
+      "rr": 0.5539517195767195,
+      "recall@1": 0.3333333333333333,
+      "recall@3": 0.7222222222222222,
+      "recall@5": 0.9166666666666666,
+      "recall@10": 0.9861111111111112,
+      "stale_first": 0.0
+    },
+    "hybrid + wrong links (keep) [control]": {
+      "questions": 72,
+      "rr": 0.5955930335097,
+      "recall@1": 0.3777777777777779,
+      "recall@3": 0.7694444444444444,
+      "recall@5": 0.922222222222222,
+      "recall@10": 0.9874999999999999,
+      "stale_first": 0.0
+    },
+    "hybrid + links (topic)": {
+      "questions": 72,
+      "rr": 0.6430720899470901,
+      "recall@1": 0.4444444444444444,
+      "recall@3": 0.8194444444444444,
+      "recall@5": 0.9583333333333334,
+      "recall@10": 1.0,
+      "stale_first": 0.0
+    },
+    "hybrid + wrong links (topic) [control]": {
+      "questions": 72,
+      "rr": 0.6535620590828921,
+      "recall@1": 0.4666666666666667,
+      "recall@3": 0.8013888888888888,
+      "recall@5": 0.9361111111111112,
+      "recall@10": 0.9916666666666667,
+      "stale_first": 0.0
+    }
+  },
+  "summaries_updated_questions": {
+    "lexical, updates not applied": {
+      "questions": 70,
+      "rr": 0.5494784580498866,
+      "recall@1": 0.2857142857142857,
+      "recall@3": 0.8,
+      "recall@5": 0.8857142857142857,
+      "recall@10": 0.9285714285714286,
+      "stale_first": 0.4142857142857143
+    },
+    "lexical": {
+      "questions": 70,
+      "rr": 0.6895975056689344,
+      "recall@1": 0.5142857142857142,
+      "recall@3": 0.8428571428571429,
+      "recall@5": 0.8857142857142857,
+      "recall@10": 0.9571428571428572,
+      "stale_first": 0.0
+    },
+    "lexical + links (keep)": {
+      "questions": 70,
+      "rr": 0.6832142857142859,
+      "recall@1": 0.5,
+      "recall@3": 0.8571428571428571,
+      "recall@5": 0.9,
+      "recall@10": 0.9428571428571428,
+      "stale_first": 0.0
+    },
+    "lexical + links (copy)": {
+      "questions": 70,
+      "rr": 0.6973979591836736,
+      "recall@1": 0.5142857142857142,
+      "recall@3": 0.8428571428571429,
+      "recall@5": 0.9,
+      "recall@10": 0.9714285714285714,
+      "stale_first": 0.0
+    },
+    "lexical + links (topic)": {
+      "questions": 70,
+      "rr": 0.6973979591836736,
+      "recall@1": 0.5142857142857142,
+      "recall@3": 0.8428571428571429,
+      "recall@5": 0.9,
+      "recall@10": 0.9714285714285714,
+      "stale_first": 0.0
+    },
+    "lexical + wrong links (keep) [control]": {
+      "questions": 70,
+      "rr": 0.6823985260770976,
+      "recall@1": 0.4971428571428571,
+      "recall@3": 0.8471428571428571,
+      "recall@5": 0.8957142857142858,
+      "recall@10": 0.9557142857142858,
+      "stale_first": 0.0
+    },
+    "lexical + planted links (keep) [control]": {
+      "questions": 70,
+      "rr": 0.6832142857142859,
+      "recall@1": 0.5,
+      "recall@3": 0.8571428571428571,
+      "recall@5": 0.9,
+      "recall@10": 0.9428571428571428,
+      "stale_first": 0.0
+    },
+    "lexical + wrong links (topic) [control]": {
+      "questions": 70,
+      "rr": 0.6891575963718821,
+      "recall@1": 0.5028571428571429,
+      "recall@3": 0.8557142857142856,
+      "recall@5": 0.9014285714285715,
+      "recall@10": 0.9600000000000001,
+      "stale_first": 0.0
+    },
+    "lexical + planted links (topic) [control]": {
+      "questions": 70,
+      "rr": 0.7051190476190479,
+      "recall@1": 0.5142857142857142,
+      "recall@3": 0.8714285714285714,
+      "recall@5": 0.9428571428571428,
+      "recall@10": 0.9857142857142858,
+      "stale_first": 0.0
+    },
+    "hybrid, updates not applied": {
+      "questions": 70,
+      "rr": 0.5062244897959183,
+      "recall@1": 0.2571428571428571,
+      "recall@3": 0.7,
+      "recall@5": 0.9,
+      "recall@10": 0.9857142857142858,
+      "stale_first": 0.5285714285714286
+    },
+    "hybrid": {
+      "questions": 70,
+      "rr": 0.628231292517007,
+      "recall@1": 0.4142857142857143,
+      "recall@3": 0.8142857142857143,
+      "recall@5": 0.9428571428571428,
+      "recall@10": 0.9857142857142858,
+      "stale_first": 0.0
+    },
+    "hybrid, permuted vectors [control]": {
+      "questions": 70,
+      "rr": 0.1446848072562358,
+      "recall@1": 0.027142857142857153,
+      "recall@3": 0.08714285714285712,
+      "recall@5": 0.25571428571428567,
+      "recall@10": 0.6914285714285715,
+      "stale_first": 0.0
+    },
+    "hybrid + links (keep)": {
+      "questions": 70,
+      "rr": 0.5597789115646258,
+      "recall@1": 0.34285714285714286,
+      "recall@3": 0.7285714285714285,
+      "recall@5": 0.9142857142857143,
+      "recall@10": 0.9857142857142858,
+      "stale_first": 0.0
+    },
+    "hybrid + wrong links (keep) [control]": {
+      "questions": 70,
+      "rr": 0.604705215419501,
+      "recall@1": 0.3885714285714287,
+      "recall@3": 0.7814285714285714,
+      "recall@5": 0.9214285714285714,
+      "recall@10": 0.9871428571428571,
+      "stale_first": 0.0
+    },
+    "hybrid + links (topic)": {
+      "questions": 70,
+      "rr": 0.6514455782312927,
+      "recall@1": 0.45714285714285713,
+      "recall@3": 0.8285714285714286,
+      "recall@5": 0.9571428571428572,
+      "recall@10": 1.0,
+      "stale_first": 0.0
+    },
+    "hybrid + wrong links (topic) [control]": {
+      "questions": 70,
+      "rr": 0.6643304988662129,
+      "recall@1": 0.48000000000000004,
+      "recall@3": 0.8142857142857142,
+      "recall@5": 0.9357142857142857,
+      "recall@10": 0.9914285714285715,
+      "stale_first": 0.0
+    }
+  },
+  "contrasts_updated_questions": {
+    "update handling: oracle updates vs none": {
+      "mean": 0.14011904761904762,
+      "ci95": [
+        0.09123015873015873,
+        0.19037981859410433
+      ],
+      "better": 31,
+      "worse": 1,
+      "same": 38
+    },
+    "links at all (keep) vs no links": {
+      "mean": -0.006383219954648526,
+      "ci95": [
+        -0.0323015873015873,
+        0.01761904761904762
+      ],
+      "better": 6,
+      "worse": 4,
+      "same": 60
+    },
+    "PRIMARY carry-over: topic vs keep": {
+      "mean": 0.014183673469387755,
+      "ci95": [
+        0.0010884353741496603,
+        0.032619047619047624
+      ],
+      "better": 5,
+      "worse": 1,
+      "same": 64
+    },
+    "copy vs topic (expected identical)": {
+      "mean": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "better": 0,
+      "worse": 0,
+      "same": 70
+    },
+    "negative control: topic vs keep, wrong links": {
+      "mean": 0.006759070294784578,
+      "ci95": [
+        0.0034761904761904795,
+        0.01037471655328798
+      ],
+      "better": 17,
+      "worse": 0,
+      "same": 53
+    },
+    "positive control: topic vs keep, planted links": {
+      "mean": 0.02190476190476191,
+      "ci95": [
+        -0.0038095238095238104,
+        0.04904761904761905
+      ],
+      "better": 10,
+      "worse": 1,
+      "same": 59
+    },
+    "hybrid: vectors vs permuted vectors": {
+      "mean": 0.48354648526077093,
+      "ci95": [
+        0.41046145124716543,
+        0.5565396825396827
+      ],
+      "better": 67,
+      "worse": 2,
+      "same": 1
+    },
+    "hybrid carry-over: topic vs keep": {
+      "mean": 0.09166666666666669,
+      "ci95": [
+        0.0373639455782313,
+        0.1504591836734694
+      ],
+      "better": 22,
+      "worse": 6,
+      "same": 42
+    },
+    "hybrid negative control: topic vs keep, wrong links": {
+      "mean": 0.05962528344671201,
+      "ci95": [
+        0.044380952380952375,
+        0.07592460317460316
+      ],
+      "better": 53,
+      "worse": 0,
+      "same": 17
+    }
+  },
+  "verdict": "inconclusive: the positive control did not show a detectable effect"
+}
