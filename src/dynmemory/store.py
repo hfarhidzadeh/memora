@@ -85,10 +85,24 @@ class Link:
 
 @dataclass(frozen=True)
 class SearchResult:
+    """One ranked memory.
+
+    ``score`` only orders the results of a single search (the best direct match
+    scores 1). The raw signals behind it are comparable across searches, so a
+    caller can tell a weak best match from a strong one and stay silent:
+    ``lexical_score`` is the BM25-style score, ``vector_score`` the cosine
+    similarity (0 below the embedder's ``min_similarity``), and ``coverage``
+    the share of the query's inverse-document-frequency mass that the memory
+    contains. Each is 0 when the memory did not match that way.
+    """
+
     memory: Memory
     score: float
     matched_by: str
     links: tuple[Link, ...] = ()
+    lexical_score: float = 0.0
+    vector_score: float = 0.0
+    coverage: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -647,7 +661,7 @@ class MemoryStore:
             if not active_memories:
                 return []
 
-            lexical_scores = self._lexical_scores(active_memories, query_tokens)
+            lexical_scores, coverage = self._lexical_scores(active_memories, query_tokens)
             vector_scores = {}
             if query_vector is not None:
                 vector_scores = self._vector_scores(
@@ -782,16 +796,25 @@ class MemoryStore:
                                 ),
                             )
                         ),
+                        lexical_score=lexical_scores.get(memory_id, 0.0),
+                        vector_score=vector_scores.get(memory_id, 0.0),
+                        coverage=coverage.get(memory_id, 0.0),
                     )
                 )
             return results
 
     def _lexical_scores(
         self, memories: Mapping[str, Memory], query_tokens: Sequence[str]
-    ) -> dict[str, float]:
-        """BM25-style scores for memories sharing at least one query token."""
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        """BM25-style scores and query coverage of memories sharing a query token.
+
+        Coverage is the inverse-document-frequency mass of the distinct query
+        tokens a memory contains, as a share of the mass of all of them. A rare
+        query word that no memory contains still counts in the total, so a
+        question about something never mentioned cannot be fully covered.
+        """
         if not query_tokens:
-            return {}
+            return {}, {}
         tokenized = {
             memory.id: self._TOKEN_PATTERN.findall(
                 "{} {}".format(memory.content, memory.memory_key or "").lower()
@@ -804,7 +827,18 @@ class MemoryStore:
                 document_frequency[token] = document_frequency.get(token, 0) + 1
 
         average_length = sum(map(len, tokenized.values())) / float(len(memories))
+        inverse_document_frequency = {
+            token: math.log(
+                1
+                + (len(memories) - document_frequency.get(token, 0) + 0.5)
+                / (document_frequency.get(token, 0) + 0.5)
+            )
+            # Sorted, so the sums below do not depend on the hash seed.
+            for token in sorted(set(query_tokens))
+        }
+        total_mass = sum(inverse_document_frequency.values())
         scores = {}
+        coverage = {}
         for memory_id, terms in tokenized.items():
             term_frequency = {}
             for term in terms:
@@ -815,20 +849,23 @@ class MemoryStore:
                 frequency = term_frequency.get(token, 0)
                 if not frequency:
                     continue
-                inverse_document_frequency = math.log(
-                    1
-                    + (len(memories) - document_frequency[token] + 0.5)
-                    / (document_frequency[token] + 0.5)
-                )
                 length_factor = 1.2 * (
                     0.25 + 0.75 * len(terms) / max(average_length, 1.0)
                 )
-                score += inverse_document_frequency * (
+                score += inverse_document_frequency[token] * (
                     frequency * 2.2 / (frequency + length_factor)
                 )
             if score > 0:
                 scores[memory_id] = score
-        return scores
+                coverage[memory_id] = (
+                    sum(
+                        mass
+                        for token, mass in inverse_document_frequency.items()
+                        if token in term_frequency
+                    )
+                    / total_mass
+                )
+        return scores, coverage
 
     def _vector_scores(
         self,

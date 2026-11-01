@@ -68,15 +68,14 @@ def load_labels(path: str) -> dict:
     return labels
 
 
-def convert_question(
-    question: dict, *, updates: bool = True, label: Optional[dict] = None
-) -> tuple[Optional[dict], str]:
-    """Return ``(eval_set, "converted")`` or ``(None, reason it was skipped)``."""
-    if question["question_id"].endswith("_abs"):
-        return None, "abstention question"
-    category = label["category"] if label else None
-    if category == "exclude":
-        return None, "excluded by label"
+def question_memories(question: dict) -> tuple[dict, list[dict], list[tuple[int, str]]]:
+    """Return a question's memories, session links and evidence turns.
+
+    The memories are the user's turns, oldest session first, keyed
+    ``session_id:turn_index``. The links join consecutive user turns of one
+    session. The evidence is ``(session rank, key)`` for every turn the
+    benchmark marks ``has_answer``; it is empty for abstention questions.
+    """
     order = sorted(
         range(len(question["haystack_sessions"])),
         key=lambda index: (
@@ -101,6 +100,19 @@ def convert_question(
             previous_key = key
             if turn.get("has_answer"):
                 evidence.append((session_rank, key))
+    return memories, links, evidence
+
+
+def convert_question(
+    question: dict, *, updates: bool = True, label: Optional[dict] = None
+) -> tuple[Optional[dict], str]:
+    """Return ``(eval_set, "converted")`` or ``(None, reason it was skipped)``."""
+    if question["question_id"].endswith("_abs"):
+        return None, "abstention question"
+    category = label["category"] if label else None
+    if category == "exclude":
+        return None, "excluded by label"
+    memories, links, evidence = question_memories(question)
     if not evidence:
         return None, "no evidence in user turns"
 

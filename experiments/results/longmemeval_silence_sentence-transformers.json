@@ -1,0 +1,3907 @@
+{
+ "report": {
+  "embedder": "sentence-transformers",
+  "statistics": {
+   "lexical": {
+    "pairs": 29,
+    "twin_higher": 23,
+    "near_miss_higher": 6,
+    "ties": 0,
+    "sign_p": 0.002315700054168701,
+    "paired_auc": 0.7931034482758621,
+    "paired_auc_ci95": [
+     0.6551724137931034,
+     0.9310344827586207
+    ],
+    "foreign_auc": 0.8632580261593341,
+    "median": {
+     "calibration": 16.65402652037207,
+     "twin": 15.859635150661472,
+     "near_miss": 14.458158364909885,
+     "foreign": 10.393911042049028
+    },
+    "negative_control": [
+     {
+      "first_higher": 7,
+      "second_higher": 14,
+      "ties": 8,
+      "p": 0.18924713134765625
+     }
+    ],
+    "gates": {
+     "0.8": {
+      "threshold": 11.623414584709291,
+      "calibration_kept": 0.8,
+      "twin_kept": 0.8620689655172413,
+      "near_miss_silenced": 0.43333333333333335,
+      "near_miss_silenced_ci95": [
+       0.2737723743061511,
+       0.6080299045459127
+      ],
+      "foreign_silenced": 0.7241379310344828
+     },
+     "0.9": {
+      "threshold": 9.224716308139865,
+      "calibration_kept": 0.9,
+      "twin_kept": 0.896551724137931,
+      "near_miss_silenced": 0.1,
+      "near_miss_silenced_ci95": [
+       0.03459925995971615,
+       0.25621441315266624
+      ],
+      "foreign_silenced": 0.3793103448275862
+     },
+     "0.95": {
+      "threshold": 8.461659247922203,
+      "calibration_kept": 0.95,
+      "twin_kept": 0.9655172413793104,
+      "near_miss_silenced": 0.06666666666666667,
+      "near_miss_silenced_ci95": [
+       0.01847663532769335,
+       0.21323817721072091
+      ],
+      "foreign_silenced": 0.2413793103448276
+     }
+    }
+   },
+   "coverage": {
+    "pairs": 29,
+    "twin_higher": 25,
+    "near_miss_higher": 4,
+    "ties": 0,
+    "sign_p": 0.00010371580719947815,
+    "paired_auc": 0.8620689655172413,
+    "paired_auc_ci95": [
+     0.7241379310344828,
+     0.9655172413793104
+    ],
+    "foreign_auc": 0.8977407847800237,
+    "median": {
+     "calibration": 0.47237145700922734,
+     "twin": 0.5015897395934852,
+     "near_miss": 0.37350607786428025,
+     "foreign": 0.2564813059322934
+    },
+    "negative_control": [
+     {
+      "first_higher": 8,
+      "second_higher": 13,
+      "ties": 8,
+      "p": 0.38331031799316406
+     }
+    ],
+    "gates": {
+     "0.8": {
+      "threshold": 0.3501156616387707,
+      "calibration_kept": 0.8,
+      "twin_kept": 0.7931034482758621,
+      "near_miss_silenced": 0.4,
+      "near_miss_silenced_ci95": [
+       0.24590394326083403,
+       0.5767994750172616
+      ],
+      "foreign_silenced": 0.896551724137931
+     },
+     "0.9": {
+      "threshold": 0.29966905225093815,
+      "calibration_kept": 0.9,
+      "twin_kept": 0.8620689655172413,
+      "near_miss_silenced": 0.26666666666666666,
+      "near_miss_silenced_ci95": [
+       0.14182495553910618,
+       0.4444830204431169
+      ],
+      "foreign_silenced": 0.8275862068965517
+     },
+     "0.95": {
+      "threshold": 0.26156634470406026,
+      "calibration_kept": 0.95,
+      "twin_kept": 0.9310344827586207,
+      "near_miss_silenced": 0.1,
+      "near_miss_silenced_ci95": [
+       0.03459925995971615,
+       0.25621441315266624
+      ],
+      "foreign_silenced": 0.5517241379310345
+     }
+    }
+   },
+   "vector": {
+    "pairs": 29,
+    "twin_higher": 22,
+    "near_miss_higher": 7,
+    "ties": 0,
+    "sign_p": 0.008130058646202087,
+    "paired_auc": 0.7586206896551724,
+    "paired_auc_ci95": [
+     0.5862068965517241,
+     0.896551724137931
+    ],
+    "foreign_auc": 0.8596908442330559,
+    "median": {
+     "calibration": 0.49182010174285296,
+     "twin": 0.47547878629264234,
+     "near_miss": 0.44994901277977806,
+     "foreign": 0.29028588695975754
+    },
+    "negative_control": [
+     {
+      "first_higher": 8,
+      "second_higher": 20,
+      "ties": 1,
+      "p": 0.03569813817739487
+     }
+    ],
+    "gates": {
+     "0.8": {
+      "threshold": 0.4084543933425592,
+      "calibration_kept": 0.8,
+      "twin_kept": 0.7931034482758621,
+      "near_miss_silenced": 0.4,
+      "near_miss_silenced_ci95": [
+       0.24590394326083403,
+       0.5767994750172616
+      ],
+      "foreign_silenced": 0.896551724137931
+     },
+     "0.9": {
+      "threshold": 0.3689463781848515,
+      "calibration_kept": 0.9,
+      "twin_kept": 0.8275862068965517,
+      "near_miss_silenced": 0.3,
+      "near_miss_silenced_ci95": [
+       0.16664562643958933,
+       0.4787612101166018
+      ],
+      "foreign_silenced": 0.8620689655172413
+     },
+     "0.95": {
+      "threshold": 0.3063661983113195,
+      "calibration_kept": 0.95,
+      "twin_kept": 0.896551724137931,
+      "near_miss_silenced": 0.2,
+      "near_miss_silenced_ci95": [
+       0.09504978102401235,
+       0.37306047381027446
+      ],
+      "foreign_silenced": 0.5172413793103449
+     }
+    }
+   }
+  },
+  "verdict": {
+   "lexical": "separates near-miss questions but silences too few",
+   "coverage": "separates near-miss questions but silences too few",
+   "vector": "separates near-miss questions but silences too few"
+  },
+  "sensitivity": {},
+  "hits": {
+   "lexical": {
+    "answerable": 129,
+    "hit_at_5_overall": 0.875968992248062,
+    "hit_at_5_when_kept": 0.9137931034482759,
+    "hit_at_5_when_silenced": 0.5384615384615384,
+    "silenced": 13
+   },
+   "vector": {
+    "answerable": 129,
+    "hit_at_5_overall": 0.8682170542635659,
+    "hit_at_5_when_kept": 0.9122807017543859,
+    "hit_at_5_when_silenced": 0.5333333333333333,
+    "silenced": 15
+   }
+  }
+ },
+ "rows": [
+  {
+   "group": "near_miss",
+   "id": "0862e8bf_abs",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 8.863987687077277,
+    "coverage": 0.49164910476681095,
+    "vector": 0.3713052387510365
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "0862e8bf_abs",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.12662103104670194
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "15745da0_abs",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 14.594007966877257,
+    "coverage": 0.5968071580892196,
+    "vector": 0.5256930932747793
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "15745da0_abs",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.2171473711082903
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "bc8a6e93_abs",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 9.703453865749015,
+    "coverage": 0.4071578069210519,
+    "vector": 0.29008420375830346
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "bc8a6e93_abs",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.3230825573488037
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "19b5f2b3_abs",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 8.104220516459774,
+    "coverage": 0.4637971499666021,
+    "vector": 0.47693874836587835
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "19b5f2b3_abs",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.620413499323198,
+    "coverage": 0.12083420567091138,
+    "vector": 0.2546317774479254
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "29f2956b_abs",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 11.482619583140156,
+    "coverage": 0.2563008787996623,
+    "vector": 0.3282150366490723
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "29f2956b_abs",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.2564930535770098
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "f4f1d8a4_abs",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 11.005091662662672,
+    "coverage": 0.37350607786428025,
+    "vector": 0.41531138239477333
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "f4f1d8a4_abs",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 5.335436799793184,
+    "coverage": 0.05346076407510509,
+    "vector": 0.38098877864787434
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "88432d0a_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.76297675693242,
+    "coverage": 0.3148509659278839,
+    "vector": 0.3791055895557977
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "88432d0a_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 6.657287026092776,
+    "coverage": 0.07122678164577673,
+    "vector": 0.25782452339193185
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "80ec1f4f_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.61141769731293,
+    "coverage": 0.32808257279624403,
+    "vector": 0.4751284282707176
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "80ec1f4f_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 5.058178787297744,
+    "coverage": 0.04491385683911618,
+    "vector": 0.30669880449515863
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "eeda8a6d_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.771951752451368,
+    "coverage": 0.5806494357726392,
+    "vector": 0.5718945044593822
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "eeda8a6d_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 7.320112493873505,
+    "coverage": 0.0728088004252595,
+    "vector": 0.2561436018746699
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "60bf93ed_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 11.430814808617173,
+    "coverage": 0.28448617333129267,
+    "vector": 0.21025268795234262
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "60bf93ed_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.33130877191457136
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "edced276_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.713482483113056,
+    "coverage": 0.2727497961000744,
+    "vector": 0.3437467104897063
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "edced276_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 7.454810723717443,
+    "coverage": 0.05217400206106624,
+    "vector": 0.2555215773283527
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "gpt4_372c3eed_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 16.244930648086406,
+    "coverage": 0.20192415059696575,
+    "vector": 0.23998545212783542
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "gpt4_372c3eed_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 6.2029399069975595,
+    "coverage": 0.0389315678382094,
+    "vector": 0.307925316277438
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "2311e44b_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.458158364909885,
+    "coverage": 0.552149490879392,
+    "vector": 0.6018083847327432
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "2311e44b_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.26780822027025236
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "6456829e_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.263960074871385,
+    "coverage": 0.3883297776405265,
+    "vector": 0.4605382287463029
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "6456829e_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 4.27660345019718,
+    "coverage": 0.07727779323062783,
+    "vector": 0.21767036562056513
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "e5ba910e_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 10.750535239562494,
+    "coverage": 0.27584658205059615,
+    "vector": 0.4099400589678472
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "a96c20ee_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.28371270050569,
+    "coverage": 0.3096965786468944,
+    "vector": 0.2723053274644356
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "a96c20ee_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 5.241559973503341,
+    "coverage": 0.06976493924350366,
+    "vector": 0.28870638255488024
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "ba358f49_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 9.417502480221167,
+    "coverage": 0.35588484092315514,
+    "vector": 0.2862217874182789
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "ba358f49_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 6.1021618826934745,
+    "coverage": 0.06952600400839093,
+    "vector": 0.2198577659724204
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "09ba9854_abs",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 24.918783477079856,
+    "coverage": 0.4489722438952075,
+    "vector": 0.7480231202858594
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "09ba9854_abs",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.29093711212531803
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "gpt4_70e84552_abs",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 9.230717764983376,
+    "coverage": 0.18361430692389955,
+    "vector": 0.4868713119483419
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "gpt4_70e84552_abs",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.2252289154581853
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "gpt4_93159ced_abs",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 13.43893972627626,
+    "coverage": 0.3646691179361819,
+    "vector": 0.5121760892687641
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "gpt4_93159ced_abs",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 7.050725827195578,
+    "coverage": 0.06101725985938773,
+    "vector": 0.2785046749864376
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "982b5123_abs",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 11.545714903004521,
+    "coverage": 0.5234126086420604,
+    "vector": 0.5532125946894194
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "982b5123_abs",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.17958153030325225
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "c8090214_abs",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 11.222404001948458,
+    "coverage": 0.2859445398469771,
+    "vector": 0.32728080409636107
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "c8090214_abs",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.3570028215751327
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "gpt4_c27434e8_abs",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 14.198337257928554,
+    "coverage": 0.3244474551732169,
+    "vector": 0.37388492310368326
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "gpt4_c27434e8_abs",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.3592299932702253
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "gpt4_fe651585_abs",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 10.282357030572719,
+    "coverage": 0.28378760572502987,
+    "vector": 0.43134910237770235
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "gpt4_fe651585_abs",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 4.279421063710959,
+    "coverage": 0.07186562359563328,
+    "vector": 0.3090013846309386
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "6aeb4375_abs",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 16.60417926896693,
+    "coverage": 0.564915338178922,
+    "vector": 0.44994901277977806
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "6aeb4375_abs",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.2545478483679613
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "031748ae_abs",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 33.509353074525514,
+    "coverage": 0.7020841968521009,
+    "vector": 0.7183788060763612
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "031748ae_abs",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 6.732107304501748,
+    "coverage": 0.035236789709585936,
+    "vector": 0.42174962620004974
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "2698e78f_abs",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 7.78821015246553,
+    "coverage": 0.3676917619524059,
+    "vector": 0.19774584994407063
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "2698e78f_abs",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 5.197621552780945,
+    "coverage": 0.09306754678517454,
+    "vector": 0.16818605941446166
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "2133c1b5_abs",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 15.175511973012465,
+    "coverage": 0.44201546978509937,
+    "vector": 0.5023623626395124
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "2133c1b5_abs",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 4.784410991887928,
+    "coverage": 0.06950688782542627,
+    "vector": 0.3365919748446249
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "0ddfec37_abs",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 24.99013482174324,
+    "coverage": 0.5728212434836035,
+    "vector": 0.5366752508525944
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "0ddfec37_abs",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 5.711744361329891,
+    "coverage": 0.051127721070392144,
+    "vector": 0.16450776685931823
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "near_miss",
+   "id": "f685340e_abs",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 29.355027399783655,
+    "coverage": 0.655148893404866,
+    "vector": 0.7458326221959942
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "random_near_miss",
+   "id": "f685340e_abs",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 4.789162761077901,
+    "coverage": 0.04139949751911218,
+    "vector": 0.22959919028429293
+   },
+   "hit": {
+    "lexical": null,
+    "vector": null
+   }
+  },
+  {
+   "group": "twin",
+   "id": "0862e8bf",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 12.13152944408094,
+    "coverage": 0.8272732588314323,
+    "vector": 0.5759671195369456
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "0862e8bf",
+   "type": "single-session-user",
+   "query": "foreign",
+   "values": {
+    "lexical": 12.838368073382542,
+    "coverage": 0.2677994042225879,
+    "vector": 0.34525619765635696
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "0862e8bf",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.16701056401600317
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "15745da0",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 19.03796835687414,
+    "coverage": 0.817734994748276,
+    "vector": 0.6454240179448012
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "15745da0",
+   "type": "single-session-user",
+   "query": "foreign",
+   "values": {
+    "lexical": 6.848043757132852,
+    "coverage": 0.2479658461534063,
+    "vector": 0.3813912942240082
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "15745da0",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.25436513203295846
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "bc8a6e93",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 13.616493488281083,
+    "coverage": 0.5794811338415291,
+    "vector": 0.41534935542343615
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "bc8a6e93",
+   "type": "single-session-user",
+   "query": "foreign",
+   "values": {
+    "lexical": 8.549650735418753,
+    "coverage": 0.2972690148574796,
+    "vector": 0.25461396665191405
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "bc8a6e93",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 5.774798019647452,
+    "coverage": 0.08398595153375653,
+    "vector": 0.3124554315713206
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "19b5f2b3",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 8.652497072279077,
+    "coverage": 0.5940039300469819,
+    "vector": 0.43640816241310665
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "19b5f2b3",
+   "type": "single-session-user",
+   "query": "foreign",
+   "values": {
+    "lexical": 10.602333176947289,
+    "coverage": 0.24676323017143567,
+    "vector": 0.26301450300123985
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "19b5f2b3",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.2351843763503511
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "29f2956b",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 11.898074163391751,
+    "coverage": 0.30058454383804867,
+    "vector": 0.39747698538950205
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "29f2956b",
+   "type": "single-session-user",
+   "query": "foreign",
+   "values": {
+    "lexical": 7.868745644260202,
+    "coverage": 0.26008288764001947,
+    "vector": 0.2609537683743938
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "29f2956b",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.23403067399076435
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "f4f1d8a4",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 23.15954246931242,
+    "coverage": 0.6786703128669312,
+    "vector": 0.45583485055616046
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "f4f1d8a4",
+   "type": "single-session-user",
+   "query": "foreign",
+   "values": {
+    "lexical": 11.22199530210237,
+    "coverage": 0.28281905646157884,
+    "vector": 0.33269148044533964
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "f4f1d8a4",
+   "type": "single-session-user",
+   "query": "random",
+   "values": {
+    "lexical": 5.9476992309720185,
+    "coverage": 0.07862650509360407,
+    "vector": 0.20743465860161764
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "88432d0a",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 10.11353395743777,
+    "coverage": 0.2648409289147184,
+    "vector": 0.41680321247329866
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "88432d0a",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 6.768950330677737,
+    "coverage": 0.12895329839323907,
+    "vector": 0.24047360510463756
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "88432d0a",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.3488040135491071,
+    "coverage": 0.06952600400839093,
+    "vector": 0.23563089901175535
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "80ec1f4f",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 12.75127201919371,
+    "coverage": 0.29650990553615586,
+    "vector": 0.4813741330167041
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "80ec1f4f",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 12.124607814966481,
+    "coverage": 0.24465152507980759,
+    "vector": 0.3494351034726931
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "80ec1f4f",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 4.160011513163143,
+    "coverage": 0.04145655836224033,
+    "vector": 0.30669880449515863
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "eeda8a6d",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.44194012361424,
+    "coverage": 0.5015897395934852,
+    "vector": 0.5519372063260406
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "eeda8a6d",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 8.032234443163869,
+    "coverage": 0.26945700264236305,
+    "vector": 0.32787373028958416
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "eeda8a6d",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 3.7062637961547864,
+    "coverage": 0.0724708924262184,
+    "vector": 0.2596561122049279
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "60bf93ed",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.859635150661472,
+    "coverage": 0.36937258819568564,
+    "vector": 0.32056167051421414
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "60bf93ed",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 8.865441121556362,
+    "coverage": 0.25593986264311397,
+    "vector": 0.23597705887251352
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "60bf93ed",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 5.717743952191656,
+    "coverage": 0.04373731905517459,
+    "vector": 0.38070446319737156
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "edced276",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.307449529907311,
+    "coverage": 0.3690087899934101,
+    "vector": 0.4094587913391607
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "edced276",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 11.119462304707943,
+    "coverage": 0.35183278582460786,
+    "vector": 0.27737625526342335
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "edced276",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 5.520908222469709,
+    "coverage": 0.046982885333421924,
+    "vector": 0.2235760055138618
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "gpt4_372c3eed",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 17.396393610265672,
+    "coverage": 0.23382362241941948,
+    "vector": 0.22760182305339288
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "gpt4_372c3eed",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 12.160005390439753,
+    "coverage": 0.1781911271551527,
+    "vector": 0.25936394301821003
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "gpt4_372c3eed",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 5.703619438229762,
+    "coverage": 0.11363059148088274,
+    "vector": 0.28852612958553936
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "2311e44b",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 17.91122196500758,
+    "coverage": 0.662250998886611,
+    "vector": 0.6067221291758642
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "2311e44b",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 13.723664810555256,
+    "coverage": 0.3252778729985169,
+    "vector": 0.33775544647498457
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "2311e44b",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.18953147086545083
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "6456829e",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.368952464647448,
+    "coverage": 0.46389257048941035,
+    "vector": 0.5113115155772752
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "6456829e",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 12.861759755060076,
+    "coverage": 0.2564813059322934,
+    "vector": 0.14119657190066634
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "6456829e",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 4.808790594620599,
+    "coverage": 0.07599134364215977,
+    "vector": 0.2067602163872338
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "a96c20ee",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 21.88059793297913,
+    "coverage": 0.4981119159512532,
+    "vector": 0.2589624907422856
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "a96c20ee",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 14.828660891999473,
+    "coverage": 0.3597779574507096,
+    "vector": 0.4336539980305116
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "a96c20ee",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 6.256705195468954,
+    "coverage": 0.07172630369427482,
+    "vector": 0.2922208602172708
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "ba358f49",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.28947900015774,
+    "coverage": 0.3736913938132769,
+    "vector": 0.19143093913671935
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "ba358f49",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 10.66879630535922,
+    "coverage": 0.24877487793761405,
+    "vector": 0.31291117209686703
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "ba358f49",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.5241712012763038,
+    "coverage": 0.06916837955756092,
+    "vector": 0.1650227459899752
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "09ba9854",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 26.60815898255634,
+    "coverage": 0.5043758398881734,
+    "vector": 0.7650953903419948
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "09ba9854",
+   "type": "multi-session",
+   "query": "foreign",
+   "values": {
+    "lexical": 9.656535002647297,
+    "coverage": 0.15006450400425503,
+    "vector": 0.28942449200700865
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "09ba9854",
+   "type": "multi-session",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.25748870087908204
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "gpt4_70e84552",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 8.95917167262542,
+    "coverage": 0.23042943804799887,
+    "vector": 0.5031381966858178
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "gpt4_70e84552",
+   "type": "temporal-reasoning",
+   "query": "foreign",
+   "values": {
+    "lexical": 11.11038382241128,
+    "coverage": 0.29512779421137797,
+    "vector": 0.426124122121633
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "gpt4_70e84552",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.19648137589515588
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "gpt4_93159ced",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 13.261421782041083,
+    "coverage": 0.49791051369423184,
+    "vector": 0.6746759593861841
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "gpt4_93159ced",
+   "type": "temporal-reasoning",
+   "query": "foreign",
+   "values": {
+    "lexical": 12.776251452629603,
+    "coverage": 0.2541654407843751,
+    "vector": 0.3560254249353704
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "gpt4_93159ced",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 4.812247092935039,
+    "coverage": 0.06047441602242229,
+    "vector": 0.2128780446739608
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "982b5123",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 18.10885116609473,
+    "coverage": 0.5926737863404633,
+    "vector": 0.5881979380355759
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "982b5123",
+   "type": "temporal-reasoning",
+   "query": "foreign",
+   "values": {
+    "lexical": 8.990516810375587,
+    "coverage": 0.250436238708372,
+    "vector": 0.29028588695975754
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "982b5123",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.17877712486917227
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "c8090214",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 21.251548486038118,
+    "coverage": 0.35376844969601734,
+    "vector": 0.4508194215474293
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "c8090214",
+   "type": "temporal-reasoning",
+   "query": "foreign",
+   "values": {
+    "lexical": 7.335462175695067,
+    "coverage": 0.22663908242187292,
+    "vector": 0.27440369568402007
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "c8090214",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 1.0923520486878675,
+    "coverage": 0.05187444275072121,
+    "vector": 0.36546762308927366
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "gpt4_c27434e8",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 28.32768390845244,
+    "coverage": 0.6796419415404417,
+    "vector": 0.47175943818701127
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "gpt4_c27434e8",
+   "type": "temporal-reasoning",
+   "query": "foreign",
+   "values": {
+    "lexical": 7.530533612446671,
+    "coverage": 0.5754801591600656,
+    "vector": 0.3606254335637631
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "gpt4_c27434e8",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 3.7331553564056,
+    "coverage": 0.04131558946089861,
+    "vector": 0.2943936260900106
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "gpt4_fe651585",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 7.348773040177942,
+    "coverage": 0.3121634483705946,
+    "vector": 0.4500410339801796
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "gpt4_fe651585",
+   "type": "temporal-reasoning",
+   "query": "foreign",
+   "values": {
+    "lexical": 12.60590488733498,
+    "coverage": 0.29380209061924867,
+    "vector": 0.6264084094433081
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "gpt4_fe651585",
+   "type": "temporal-reasoning",
+   "query": "random",
+   "values": {
+    "lexical": 3.826832045170367,
+    "coverage": 0.09542246402170186,
+    "vector": 0.2888711550795731
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "6aeb4375",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 21.043240001980937,
+    "coverage": 0.7644447343582295,
+    "vector": 0.7210557266795482
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "6aeb4375",
+   "type": "knowledge-update",
+   "query": "foreign",
+   "values": {
+    "lexical": 8.965740133607488,
+    "coverage": 0.27510313260782426,
+    "vector": 0.237196193177186
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "6aeb4375",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.2456648901669334
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "031748ae",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 44.75021417397937,
+    "coverage": 0.7372109012412402,
+    "vector": 0.757570727944019
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "031748ae",
+   "type": "knowledge-update",
+   "query": "foreign",
+   "values": {
+    "lexical": 10.24500219323798,
+    "coverage": 0.3312414819635067,
+    "vector": 0.25917534460759606
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "031748ae",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 4.907110556233535,
+    "coverage": 0.035062842602377804,
+    "vector": 0.32597556568381053
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "2698e78f",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 11.903317460984326,
+    "coverage": 0.44989736408078496,
+    "vector": 0.3548170766587778
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "2698e78f",
+   "type": "knowledge-update",
+   "query": "foreign",
+   "values": {
+    "lexical": 9.654552853571,
+    "coverage": 0.1556112213210465,
+    "vector": 0.31974946425754824
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "2698e78f",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.19107461084053626
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "2133c1b5",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 18.688112366827315,
+    "coverage": 0.5805930151081216,
+    "vector": 0.47547878629264234
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "2133c1b5",
+   "type": "knowledge-update",
+   "query": "foreign",
+   "values": {
+    "lexical": 6.49125214646858,
+    "coverage": 0.17657627364615222,
+    "vector": 0.18845503898813437
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "2133c1b5",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.31206741013000017
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "0ddfec37",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 28.453338517732746,
+    "coverage": 0.7079453918278706,
+    "vector": 0.6838597756830692
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "0ddfec37",
+   "type": "knowledge-update",
+   "query": "foreign",
+   "values": {
+    "lexical": 10.393911042049028,
+    "coverage": 0.2910853708894437,
+    "vector": 0.2150873378380916
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "0ddfec37",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 5.458300646637072,
+    "coverage": 0.05034333837179035,
+    "vector": 0.19260509996749886
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "twin",
+   "id": "f685340e",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 35.166895585612345,
+    "coverage": 0.6209628416251027,
+    "vector": 0.7398097332994488
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "foreign",
+   "id": "f685340e",
+   "type": "knowledge-update",
+   "query": "foreign",
+   "values": {
+    "lexical": 11.160310717456282,
+    "coverage": 0.2548066444882514,
+    "vector": 0.3332463632087242
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "random_twin",
+   "id": "f685340e",
+   "type": "knowledge-update",
+   "query": "random",
+   "values": {
+    "lexical": 0.0,
+    "coverage": 0.0,
+    "vector": 0.18511606683399168
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_e05b82a6",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 13.01751263607896,
+    "coverage": 0.25723204247669795,
+    "vector": 0.5585973879848615
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "81507db6",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.60477988265803,
+    "coverage": 0.4302612589845859,
+    "vector": 0.3393564415214132
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_2f8be40d",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 8.295503150996666,
+    "coverage": 0.8127076673800512,
+    "vector": 0.4191464025161386
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "8cf4d046",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.312014530503463,
+    "coverage": 0.5477409873538636,
+    "vector": 0.22249712917399025
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "0ea62687",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 32.43497081854822,
+    "coverage": 0.6592565321146158,
+    "vector": 0.537778524196745
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "55241a1f",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 25.16408272657537,
+    "coverage": 0.3976549650055185,
+    "vector": 0.4250633568456821
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a4996e51",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 24.97273460178002,
+    "coverage": 0.6876209647483514,
+    "vector": 0.5490508590664946
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a1cc6108",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 7.6119186298581285,
+    "coverage": 0.26156634470406026,
+    "vector": 0.45494752008193073
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "87f22b4a",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 10.044270464521011,
+    "coverage": 0.5443058182169506,
+    "vector": 0.5024709462175956
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_5501fe77",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 21.158685221310066,
+    "coverage": 0.4848873582394659,
+    "vector": 0.6468452103174043
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "61f8c8f8",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 16.79289902483051,
+    "coverage": 0.304346525741802,
+    "vector": 0.5333998709401163
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a11281a2",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 19.59816426728201,
+    "coverage": 0.521495067156437,
+    "vector": 0.6057316640228353
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "720133ac",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 15.205573149432457,
+    "coverage": 0.4076401350968513,
+    "vector": 0.6278539193685868
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "c2ac3c61",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 14.458735802959541,
+    "coverage": 0.52446145335955,
+    "vector": 0.49021157157673606
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "46a3abf7",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 18.072174274822384,
+    "coverage": 0.3960913123228679,
+    "vector": 0.44003421648127916
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a346bb18",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 16.409601597925302,
+    "coverage": 0.5106411267123965,
+    "vector": 0.6222296830366608
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "28dc39ac",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 11.246846213705057,
+    "coverage": 0.4098265208143999,
+    "vector": 0.3805262659492823
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "60159905",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 11.669537314537955,
+    "coverage": 0.39615098123373643,
+    "vector": 0.5358812161156283
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "f35224e0",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 17.716458631680062,
+    "coverage": 0.406613476326662,
+    "vector": 0.5001595720216039
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "1f2b8d4f",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 23.987900610716935,
+    "coverage": 0.4706195442850834,
+    "vector": 0.7643622589556621
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "d6062bb9",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 17.84752294041718,
+    "coverage": 0.35934949232817387,
+    "vector": 0.46695353429725217
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "51c32626",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 16.80579308484502,
+    "coverage": 0.5912359869906263,
+    "vector": 0.48663520392148485
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "b3c15d39",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 24.386103606298658,
+    "coverage": 0.4800759873436747,
+    "vector": 0.5107918297251961
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "d23cf73b",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 13.073622752775144,
+    "coverage": 0.35802270464441893,
+    "vector": 0.4660157931863217
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "2b8f3739",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 13.53425208954359,
+    "coverage": 0.29966905225093815,
+    "vector": 0.3689463781848515
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "67e0d0f2",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 10.706164375751797,
+    "coverage": 0.43153369835121264,
+    "vector": 0.3991431573521426
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "ef9cf60a",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 9.029387598435495,
+    "coverage": 0.42147547274217584,
+    "vector": 0.5929904221695061
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "157a136e",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 9.224716308139865,
+    "coverage": 0.2888177100868898,
+    "vector": 0.43726270401863665
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "6cb6f249",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 13.63011423306905,
+    "coverage": 0.3129151473560633,
+    "vector": 0.47371881017051576
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a08a253f",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 19.494604660730722,
+    "coverage": 0.6321959184609625,
+    "vector": 0.5273287268112653
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "bc149d6b",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 12.276110341842152,
+    "coverage": 0.34240257399411345,
+    "vector": 0.6319594886784031
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "dd2973ad",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 18.61917562110716,
+    "coverage": 0.4741793291576499,
+    "vector": 0.3753536002806121
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_d84a3211",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 16.987697278933677,
+    "coverage": 0.36885233891999575,
+    "vector": 0.43519723960565176
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "91b15a6e",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 20.69382216685196,
+    "coverage": 0.3683239168205335,
+    "vector": 0.6533719080497387
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "681a1674",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 18.75022932547644,
+    "coverage": 0.6104484565846795,
+    "vector": 0.6166094422245313
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "3fe836c9",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 20.530696667064763,
+    "coverage": 0.4340573169172521,
+    "vector": 0.4543083565798553
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "bb7c3b45",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 13.481745107480055,
+    "coverage": 0.4951618298313814,
+    "vector": 0.513977240057094
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_2f91af09",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 25.283127054126275,
+    "coverage": 0.33030638369498894,
+    "vector": 0.43221154467628187
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "92a0aa75",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 8.583066443243892,
+    "coverage": 0.7181658347085558,
+    "vector": 0.33539263913147177
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a9f6b44c",
+   "type": "multi-session",
+   "query": "natural",
+   "values": {
+    "lexical": 18.318511236719146,
+    "coverage": 0.3153337946780923,
+    "vector": 0.4084543933425592
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "577d4d32",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 14.974794071501963,
+    "coverage": 0.548903143485919,
+    "vector": 0.42081492257305564
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "1faac195",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 13.057920234915347,
+    "coverage": 0.4651252490485749,
+    "vector": 0.49182010174285296
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "d52b4f67",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 12.671373280901783,
+    "coverage": 0.4909949577777116,
+    "vector": 0.2954913207053556
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "8ebdbe50",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 13.67646231879321,
+    "coverage": 0.5844273124915063,
+    "vector": 0.6065374667776042
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "001be529",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 17.59849336793486,
+    "coverage": 0.6049775892078563,
+    "vector": 0.29178746825135193
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "25e5aa4f",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 12.731620661060205,
+    "coverage": 0.31206868918705577,
+    "vector": 0.406664135551139
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "c5e8278d",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 17.347558948342762,
+    "coverage": 0.775349703015653,
+    "vector": 0.47891868605430205
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "726462e0",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 30.526130377833667,
+    "coverage": 0.8605655143117771,
+    "vector": 0.42104284788451307
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "c19f7a0b",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 19.920268049007092,
+    "coverage": 0.7021490903467301,
+    "vector": 0.4410673293462477
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "b320f3f8",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 22.17222401222521,
+    "coverage": 0.5763968177409661,
+    "vector": 0.4093691996221678
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "ad7109d1",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 11.82239069068587,
+    "coverage": 0.5863360130515995,
+    "vector": 0.3567748987799043
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "e01b8e2f",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 13.95817640785219,
+    "coverage": 0.41667039259322664,
+    "vector": 0.6025906016381211
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "a82c026e",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 19.89564428765035,
+    "coverage": 0.6249677734034501,
+    "vector": 0.37314284042966966
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "86b68151",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 9.112205390042028,
+    "coverage": 0.44395196807514414,
+    "vector": 0.5755128447770955
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "66f24dbb",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 20.47211337398214,
+    "coverage": 0.7576593372707665,
+    "vector": 0.7294772692970248
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "545bd2b5",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 32.225955755411874,
+    "coverage": 0.911402137398907,
+    "vector": 0.7874835248892844
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "60d45044",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 11.757990511305401,
+    "coverage": 0.5903808089576406,
+    "vector": 0.5630565614202333
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "21436231",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 30.373245747421304,
+    "coverage": 0.6876730537181475,
+    "vector": 0.6830319607435654
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "4100d0a0",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 6.2813869636571855,
+    "coverage": 0.6109388675374252,
+    "vector": 0.3802826530086899
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "94f70d80",
+   "type": "single-session-user",
+   "query": "natural",
+   "values": {
+    "lexical": 14.20508258290733,
+    "coverage": 0.47764850210538573,
+    "vector": 0.6105623729743476
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "b46e15ee",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 11.665121486015849,
+    "coverage": 0.3812297973691738,
+    "vector": 0.42940334877821734
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "bbf86515",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 16.2848887815933,
+    "coverage": 0.31285893485293725,
+    "vector": 0.5400835504429186
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_b4a80587",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 19.89723698514535,
+    "coverage": 0.2985280405234114,
+    "vector": 0.39447563785573747
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "8077ef71",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 11.623414584709291,
+    "coverage": 0.3975014092631736,
+    "vector": 0.4285169407984953
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_5438fa52",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 11.56466037002544,
+    "coverage": 0.2366668607398265,
+    "vector": 0.394392923065137
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_2f584639",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 20.66418419245543,
+    "coverage": 0.518619259457083,
+    "vector": 0.5329362666672064
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "4dfccbf8",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 9.032850228742696,
+    "coverage": 0.4384372554247854,
+    "vector": 0.22566070228816992
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "4dfccbf7",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 24.558576226263966,
+    "coverage": 0.42074581070165057,
+    "vector": 0.45554676777872727
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_0a05b494",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 16.65402652037207,
+    "coverage": 0.31370859490491354,
+    "vector": 0.41224580281593065
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_e072b769",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 12.99893504483448,
+    "coverage": 0.3711975091182401,
+    "vector": 0.5441976458024081
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_4cd9eba1",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 23.204232711641037,
+    "coverage": 0.4322161894184677,
+    "vector": 0.6013225768973479
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_fa19884c",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 38.94506697049907,
+    "coverage": 0.47237145700922734,
+    "vector": 0.4402732547110193
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_483dd43c",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 18.754791084190458,
+    "coverage": 0.38014984372275107,
+    "vector": 0.5869894350442205
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "6613b389",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 6.97533424033217,
+    "coverage": 0.2594372506063097,
+    "vector": 0.5867819802411051
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "eac54add",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 8.461659247922203,
+    "coverage": 0.2344720064607231,
+    "vector": 0.33956906737474163
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_59149c77",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 39.220626890222725,
+    "coverage": 0.4860702129075434,
+    "vector": 0.556456830501469
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "eac54adc",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 28.523568859054063,
+    "coverage": 0.40091306001506394,
+    "vector": 0.4313618541642189
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_8279ba03",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 8.096416123277942,
+    "coverage": 0.22192786897618663,
+    "vector": 0.30329692009119225
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "6e984302",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 13.505205784048341,
+    "coverage": 0.33708857385755614,
+    "vector": 0.3063661983113195
+   },
+   "hit": {
+    "lexical": false,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "gpt4_18c2b244",
+   "type": "temporal-reasoning",
+   "query": "natural",
+   "values": {
+    "lexical": 51.873073517085025,
+    "coverage": 0.3501156616387707,
+    "vector": 0.5488127863898926
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "6071bd76",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 37.18057519574906,
+    "coverage": 0.559543837511049,
+    "vector": 0.510315775333749
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "830ce83f",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 10.198380453802834,
+    "coverage": 0.29562178060064687,
+    "vector": 0.6035471960923042
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "d7c942c3",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 25.625683961708223,
+    "coverage": 0.8315397775569806,
+    "vector": 0.6624216112234785
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "0977f2af",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 11.386059389214324,
+    "coverage": 0.2772620323092939,
+    "vector": 0.48899923379262894
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "89941a93",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 12.133994986294681,
+    "coverage": 0.688495888983718,
+    "vector": 0.6566957932299146
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "c6853660",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 22.290102780419407,
+    "coverage": 0.3956510669741211,
+    "vector": 0.5873540960465577
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "5c40ec5b",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 20.0324802571318,
+    "coverage": 0.6115089190681563,
+    "vector": 0.5153335481800463
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "50635ada",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 37.3126932498094,
+    "coverage": 0.696825464151769,
+    "vector": 0.6391100604941002
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "ed4ddc30",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 23.844820144356873,
+    "coverage": 0.6226783208630092,
+    "vector": 0.5392267745446818
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "41698283",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 9.376408287198224,
+    "coverage": 0.3755659021506267,
+    "vector": 0.3715158989201079
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "4b24c848",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 18.769917776387956,
+    "coverage": 0.6305002732368459,
+    "vector": 0.7196925714900718
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "1cea1afa",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 10.936479643344097,
+    "coverage": 0.5667602009733024,
+    "vector": 0.4338791905394367
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "22d2cb42",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 14.949210540323689,
+    "coverage": 0.6445957286618902,
+    "vector": 0.7078315137426172
+   },
+   "hit": {
+    "lexical": false,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "c7dc5443",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 15.21086882210798,
+    "coverage": 0.5261368348252848,
+    "vector": 0.4754269377374946
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "ce6d2d27",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 15.290288183056022,
+    "coverage": 0.49866900518553753,
+    "vector": 0.5324134967538895
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "07741c44",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 10.88902248872293,
+    "coverage": 0.5515523921836929,
+    "vector": 0.7273236178442808
+   },
+   "hit": {
+    "lexical": true,
+    "vector": false
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "89941a94",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 36.020189155349975,
+    "coverage": 0.56386179941849,
+    "vector": 0.47908624200968963
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "9bbe84a2",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 19.378795609178876,
+    "coverage": 0.448604062462735,
+    "vector": 0.5024534028840827
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "42ec0761",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 22.31954837966117,
+    "coverage": 0.7730810890258032,
+    "vector": 0.6744018665587046
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  },
+  {
+   "group": "calibration",
+   "id": "6a27ffc2",
+   "type": "knowledge-update",
+   "query": "natural",
+   "values": {
+    "lexical": 35.84459050006681,
+    "coverage": 0.8273795453234001,
+    "vector": 0.42003557537658864
+   },
+   "hit": {
+    "lexical": true,
+    "vector": true
+   }
+  }
+ ]
+}

@@ -126,6 +126,37 @@ class VectorSearchTests(unittest.TestCase):
         self.assertEqual(strict.search("sqlite", record_access=False), [])
         self.assertEqual(len(loose.search("sqlite", record_access=False)), 1)
 
+    def test_results_report_each_matching_signal_separately(self):
+        store = MemoryStore(":memory:", embedder=ConceptEmbedder(min_similarity=0.5))
+        paraphrase = store.add_memory("storage backend", MemoryType.FACT)
+        both = store.add_memory("sqlite storage", MemoryType.FACT)
+
+        results = {
+            result.memory.id: result for result in store.search("sqlite", record_access=False)
+        }
+
+        # "storage backend" shares no word with the query: vector only.
+        self.assertEqual(results[paraphrase.id].matched_by, "vector")
+        self.assertEqual(results[paraphrase.id].lexical_score, 0.0)
+        self.assertEqual(results[paraphrase.id].coverage, 0.0)
+        self.assertGreater(results[paraphrase.id].vector_score, 0.5)
+        # "sqlite storage" shares the word and the concept: both signals.
+        self.assertEqual(results[both.id].matched_by, "lexical+vector")
+        self.assertGreater(results[both.id].lexical_score, 0.0)
+        self.assertAlmostEqual(results[both.id].coverage, 1.0)
+        self.assertAlmostEqual(results[both.id].vector_score, 1.0)
+
+    def test_vector_score_is_zero_below_min_similarity(self):
+        store = MemoryStore(":memory:", embedder=ConceptEmbedder(min_similarity=0.95))
+        store.add_memory("sqlite database storage brief", MemoryType.FACT)
+
+        # cosine(query, memory) = 3 / sqrt(10), about 0.949: under the 0.95 cutoff.
+        (result,) = store.search("sqlite", record_access=False)
+
+        self.assertEqual(result.matched_by, "lexical")
+        self.assertEqual(result.vector_score, 0.0)
+        self.assertGreater(result.lexical_score, 0.0)
+
     def test_archived_memories_are_not_vector_matches(self):
         store = MemoryStore(self.path, embedder=ConceptEmbedder())
         store.add_memory("database one", MemoryType.FACT, memory_key="k")

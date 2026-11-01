@@ -150,6 +150,16 @@ Each result reports `matched_by` (any of `lexical`, `vector`, `graph`) and
 
 Links to archived memories are never listed.
 
+`score` only orders one search's results, so it cannot tell a strong best match
+from a weak one. Each result therefore also carries the raw signals behind it,
+which are comparable across searches: `lexical_score` (the BM25-style score),
+`vector_score` (cosine similarity, 0 below the embedder's `min_similarity`) and
+`coverage` (the share of the question's inverse-document-frequency mass that
+the memory contains; a rare question word that no memory contains counts
+against every memory). Each is 0 when the memory did not match that way. A
+caller can use them to stay silent when even the best match is weak; see
+[LongMemEval: silence](#longmemeval-silence).
+
 Each search counts as an access, which protects memories from pruning. Use
 `search --peek` (or `record_access=False` in Python) for exploratory or
 evaluation queries that should not affect pruning.
@@ -356,6 +366,37 @@ On the 50 questions that ask for a current value:
   value or both values, MRR fell from 0.53 to 0.24.
 - **MiniLM at its default settings lowered MRR** compared with lexical search
   alone (0.63 against 0.72).
+
+## LongMemEval: silence
+
+Search always returns its best matches, so a question whose answer was never
+stored gets something back anyway. Each result carries the raw signals behind
+its rank (see [Retrieval](#retrieval)), so a caller can stay silent when even
+the best match is weak.
+[experiments/longmemeval_silence.py](experiments/longmemeval_silence.py)
+asks how well that works, using the benchmark's 30 abstention questions. Each
+asks about a detail the user never gave ("the name of my hamster" when they only
+mentioned a cat). For 29 of them the benchmark also holds the answerable
+original question, which gives matched pairs. Controls: questions about
+something unrelated to the store (silence should be easy) and random words
+(no separation expected). The decision rule was fixed before the run; one
+control turned out to be flawed and was replaced afterwards, with no threshold
+changed (details in the write-up). The full write-up is in
+[experiments/results/longmemeval_silence.md](experiments/results/longmemeval_silence.md).
+
+- **The signals carry information.** For three signals (BM25 score, coverage of
+  the question's rare words, MiniLM similarity), the answerable question scored
+  above its near-miss twin in 22 to 25 of 29 pairs.
+- **But a gate silences few near-miss questions.** A threshold that keeps 90%
+  of answerable questions silenced 10% to 30% of the near-miss ones. It
+  silenced 38% to 86% of questions about something unrelated (coverage 72% to
+  83%, depending on the calibration set), so coverage or MiniLM work as an
+  "unrelated question" filter, not as a check for a missing detail. By the
+  pre-set rule none of the signals is a useful gate.
+- **Silencing is not free.** The overall hit rate fell from 0.88 to about 0.82.
+  The questions it silenced were less likely to be hits than the rest (the
+  evidence was in the top 5 for 54% of them against 91%), but over half of them
+  still were.
 
 ## Run tests
 

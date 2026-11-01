@@ -1,4 +1,8 @@
+import math
+import os
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -8,6 +12,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dynmemory import Link, MemoryStore, MemoryType, Relationship
+
+SOURCE = Path(__file__).resolve().parents[1] / "src"
 
 # The schema exactly as version 0.1 created it, to test upgrading real files.
 VERSION_0_1_SCHEMA = """
@@ -198,6 +204,71 @@ class MemoryStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_memory(memory.id).access_count, 0)
         self.store.search("gamma")
         self.assertEqual(self.store.get_memory(memory.id).access_count, 1)
+
+    def test_results_carry_raw_signals_that_the_normalised_score_hides(self):
+        # Three memories; "alpha" is in two, "beta" in one, "zeta" in none.
+        first = self.store.add_memory("alpha beta", "fact")
+        second = self.store.add_memory("alpha gamma", "fact")
+        self.store.add_memory("delta epsilon", "fact")
+        idf = lambda document_frequency: math.log(
+            1 + (3 - document_frequency + 0.5) / (document_frequency + 0.5)
+        )
+
+        results = {
+            result.memory.id: result
+            for result in self.store.search("alpha beta zeta", record_access=False)
+        }
+
+        # Coverage counts the unmatched, never-mentioned word "zeta" in the total.
+        total = idf(2) + idf(1) + idf(0)
+        self.assertAlmostEqual(results[first.id].coverage, (idf(2) + idf(1)) / total)
+        self.assertAlmostEqual(results[second.id].coverage, idf(2) / total)
+        self.assertLess(results[first.id].coverage, 1.0)
+        self.assertGreater(results[first.id].lexical_score, results[second.id].lexical_score)
+        self.assertEqual(results[first.id].vector_score, 0.0)
+
+    def test_coverage_is_one_when_a_memory_has_every_query_word(self):
+        memory = self.store.add_memory("alpha beta gamma", "fact")
+        self.store.add_memory("delta epsilon", "fact")
+
+        (result,) = self.store.search("beta alpha alpha", record_access=False)
+
+        self.assertEqual(result.memory.id, memory.id)
+        self.assertAlmostEqual(result.coverage, 1.0)
+
+    def test_coverage_does_not_depend_on_the_hash_seed(self):
+        script = (
+            "from dynmemory import MemoryStore\n"
+            "store = MemoryStore(':memory:')\n"
+            "for text in ('alpha beta gamma delta', 'alpha epsilon zeta', 'eta theta iota'):\n"
+            "    store.add_memory(text, 'fact')\n"
+            "results = store.search('alpha beta gamma zeta kappa lambda mu', record_access=False)\n"
+            "print([repr(result.coverage) for result in results])\n"
+        )
+        outputs = set()
+        for seed in ("1", "2", "3", "4"):
+            completed = subprocess.run(
+                [sys.executable, "-c", script],
+                env=dict(os.environ, PYTHONHASHSEED=seed, PYTHONPATH=str(SOURCE)),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            outputs.add(completed.stdout)
+
+        self.assertEqual(len(outputs), 1)
+
+    def test_score_is_normalised_per_search_but_raw_signals_are_not(self):
+        self.store.add_memory("alpha beta", "fact")
+        self.store.add_memory("alpha gamma", "fact")
+        self.store.add_memory("delta epsilon", "fact")
+
+        strong = self.store.search("alpha beta", record_access=False)[0]
+        weak = self.store.search("alpha zeta", record_access=False)[0]
+
+        self.assertEqual((strong.score, weak.score), (1.0, 1.0))
+        self.assertGreater(strong.lexical_score, weak.lexical_score)
+        self.assertGreater(strong.coverage, weak.coverage)
 
     def test_history_walks_supersedes_chain(self):
         v1 = self.store.add_memory("v1", "fact", memory_key="k")

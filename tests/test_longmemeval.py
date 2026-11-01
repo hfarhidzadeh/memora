@@ -7,7 +7,13 @@ import unittest
 from pathlib import Path
 
 from dynmemory.evaluation import load_eval_suite, retrieval_report
-from dynmemory.longmemeval import convert, convert_question, load_labels, main
+from dynmemory.longmemeval import (
+    convert,
+    convert_question,
+    load_labels,
+    main,
+    question_memories,
+)
 
 # A made-up question in LongMemEval's format; sessions are listed out of date order.
 QUESTION = {
@@ -46,6 +52,28 @@ def question(**changes):
     changed = copy.deepcopy(QUESTION)
     changed.update(changes)
     return changed
+
+
+class QuestionMemoriesTests(unittest.TestCase):
+    def test_returns_memories_links_and_evidence_by_session_rank(self):
+        memories, links, evidence = question_memories(QUESTION)
+
+        self.assertEqual(list(memories), ["early:0", "early:2", "filler:0", "late:0"])
+        self.assertEqual(len(links), 1)
+        # "early" is the oldest session (rank 0); "late" the newest (rank 2).
+        self.assertEqual(evidence, [(0, "early:2"), (2, "late:0")])
+
+    def test_abstention_questions_have_memories_but_no_evidence(self):
+        abstention = question(question_id="q1_abs")
+        for session in abstention["haystack_sessions"]:
+            for turn in session:
+                turn.pop("has_answer", None)
+
+        memories, _, evidence = question_memories(abstention)
+
+        self.assertEqual(len(memories), 4)
+        self.assertEqual(evidence, [])
+        self.assertEqual(convert_question(abstention), (None, "abstention question"))
 
 
 class ConvertQuestionTests(unittest.TestCase):
