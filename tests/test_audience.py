@@ -897,7 +897,193 @@ class AudienceReaderTests(AudienceCase):
             self.store.search("launch", record_access=False)
 
 
+class LineageTests(AudienceCase):
+    def setUp(self):
+        super().setUp()
+        for channel, member in (
+            ("design", "alice"), ("design", "bob"),
+            ("board", "alice"), ("board", "dana"),
+        ):
+            self.store.join_channel(channel, member)
+
+    def test_sources_intersect_audiences_on_every_read_path(self):
+        writer = self.store.for_writer("alice")
+        design = writer.add_message("Launch is Friday", channel="design")
+        board = writer.add_message("Launch might slip", channel="board")
+        derived = writer.add_memory(
+            "Launch date is under review", "fact", channel="design",
+            memory_key="launch", source_message_ids=[design.id, board.id],
+        )
+        visible = self.store.for_viewers("alice")
+        hidden = self.store.for_viewers("bob")
+        self.assertEqual(visible.get_memory(derived.id).id, derived.id)
+        self.assertEqual([m.id for m in visible.sources_of(derived.id)], [design.id, board.id])
+        self.assertEqual([r.memory.id for r in visible.search("launch")], [derived.id])
+        self.assertIsNone(hidden.get_memory(derived.id))
+        self.assertEqual(hidden.history(derived.id), [])
+        self.assertEqual(hidden.list_memories(), [])
+        self.assertEqual(hidden.search("launch"), [])
+        self.assertEqual(hidden.sources_of(derived.id), [])
+        self.assertIsNone(hidden.get_message(board.id))
+        self.store.join_channel("board", "bob")
+        self.assertEqual(hidden.get_memory(derived.id).id, derived.id)
+        self.store.leave_channel("board", "bob")
+        self.assertIsNone(hidden.get_memory(derived.id))
+
+    def test_hidden_source_changes_no_ranking_signal_or_link(self):
+        store = self.new_store(embedder=NGramHashEmbedder())
+        for channel, member in (
+            ("design", "alice"), ("design", "bob"), ("board", "alice")
+        ):
+            store.join_channel(channel, member)
+        writer = store.for_writer("alice")
+        visible = writer.add_memory("Launch plan approved", "fact", channel="design")
+        baseline = signals(store.search("launch", viewers="bob", record_access=False))
+        source = writer.add_message("Secret launch delay", channel="board")
+        hidden = writer.add_memory(
+            "Launch plan delayed", "fact", channel="design",
+            source_message_ids=[source.id],
+        )
+        store.relate(hidden.id, visible.id)
+        self.assertEqual(signals(store.search("launch", viewers="bob", record_access=False)), baseline)
+        self.assertEqual({r.memory.id for r in store.search("launch", viewers="alice", record_access=False)},
+                         {visible.id, hidden.id})
+
+    def test_bound_writer_checks_sources_and_cannot_spoof_or_retract_others(self):
+        guarded = self.new_store(require_writer=True, require_viewers=True)
+        guarded.join_channel("design", "alice")
+        guarded.join_channel("design", "bob")
+        guarded.join_channel("board", "dana")
+        with self.assertRaisesRegex(ValueError, "bound writer"):
+            guarded.add_message("x", channel="design", speaker="alice")
+        alice = guarded.for_writer("alice")
+        bob = guarded.for_writer("bob")
+        dana = guarded.for_writer("dana")
+        source = alice.add_message("Launch Friday", channel="design")
+        secret = dana.add_message("Board secret", channel="board")
+        with self.assertRaisesRegex(ValueError, "current channel member"):
+            alice.add_message("Board note", channel="board")
+        with self.assertRaisesRegex(ValueError, "unavailable"):
+            alice.add_memory("Secret", "fact", channel="design", source_message_ids=[secret.id])
+        with self.assertRaisesRegex(ValueError, "unavailable"):
+            alice.add_memory("Missing", "fact", channel="design", source_message_ids=["missing"])
+        with self.assertRaisesRegex(ValueError, "not available for retraction"):
+            bob.retract_message(source.id)
+        self.assertEqual(guarded.for_viewers("bob").get_message(source.id).content, "Launch Friday")
+        with self.assertRaises(ValueError):
+            alice.add_memory("Empty", "fact", channel="design", source_message_ids=[])
+        with self.assertRaises(ValueError):
+            alice.add_memory("String", "fact", channel="design", source_message_ids=source.id)
+
+    def test_admin_can_retract_a_message_without_channel_membership(self):
+        self.store.add_admin("dana")
+        source = self.store.for_writer("bob").add_message(
+            "Launch note", channel="design"
+        )
+        self.store.retract_message(source.id, actor_id="dana")
+        self.assertIsNone(self.store.get_message(source.id, viewers="bob"))
+        self.assertIsNone(self.store.get_message(source.id).content)
+        self.assertEqual(self.store.get_message(source.id).retracted_by, "dana")
+
+    def test_retraction_stales_all_dependents_and_rebuild_uses_surviving_source(self):
+        store = self.new_store(embedder=NGramHashEmbedder())
+        store.join_channel("design", "alice")
+        writer = store.for_writer("alice")
+        first = writer.add_message("Launch was Friday", channel="design")
+        second = writer.add_message("Launch moved to Monday", channel="design")
+        claim = writer.add_memory(
+            "Launch is Monday", "fact", channel="design", memory_key="launch",
+            source_message_ids=[first.id, second.id],
+        )
+        summary = writer.add_memory(
+            "Launch timing summary", "strategic_insight", channel="design",
+            source_message_ids=[first.id],
+        )
+        independent = writer.add_memory(
+            "Launch owner is Alice", "fact", channel="design",
+            source_message_ids=[second.id],
+        )
+        with store._transaction(write=False) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0], 3)
+
+        writer.retract_message(first.id)
+
+        self.assertIsNone(store.for_viewers("alice").get_message(first.id))
+        self.assertIsNone(store.for_viewers("alice").get_memory(claim.id))
+        self.assertEqual(store.for_viewers("alice").history(claim.id), [])
+        self.assertEqual({m.id for m in store.for_viewers("alice").list_memories()}, {independent.id})
+        self.assertEqual([r.memory.id for r in store.search("launch", viewers="alice")], [independent.id])
+        self.assertEqual({m.id for m in store.stale_memories()}, {claim.id, summary.id})
+        self.assertEqual(store.get_message(first.id).content, None)
+        self.assertIsNotNone(store.get_message(first.id).retracted_at)
+        self.assertEqual([m.id for m in store.sources_of(claim.id, include_stale=True)], [first.id, second.id])
+        with store._transaction(write=False) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0], 1)
+        with self.assertRaisesRegex(ValueError, "must be rebuilt"):
+            store.restore(claim.id)
+        with self.assertRaisesRegex(ValueError, "unavailable"):
+            writer.add_memory(
+                "Launch again", "fact", channel="design", memory_key="launch",
+                source_message_ids=[first.id],
+            )
+
+        rebuilt = writer.add_memory(
+            "Launch is Monday", "fact", channel="design", memory_key="launch",
+            source_message_ids=[second.id],
+        )
+        self.assertEqual(store.get_memory(claim.id), None)
+        self.assertEqual(store.get_memory(rebuilt.id).id, rebuilt.id)
+        self.assertEqual([m.id for m in store.sources_of(rebuilt.id)], [second.id])
+        self.assertEqual([m.id for m in store.stale_memories()], [summary.id])
+
+    def test_retraction_does_not_carry_stale_links_to_rebuilt_memory(self):
+        for policy in LinkCarryover:
+            with self.subTest(policy=policy):
+                store = self.new_store(link_carryover=policy)
+                store.join_channel("design", "alice")
+                writer = store.for_writer("alice")
+                source = writer.add_message("Review Thursday", channel="design")
+                surviving = writer.add_message("Review Friday", channel="design")
+                old = writer.add_memory(
+                    "Review Thursday", "fact", channel="design",
+                    memory_key="review", source_message_ids=[source.id],
+                )
+                neighbor = writer.add_memory("Review notes", "fact", channel="design")
+                store.relate(old.id, neighbor.id)
+                writer.retract_message(source.id)
+                current = writer.add_memory(
+                    "Review Friday", "fact", channel="design",
+                    memory_key="review", source_message_ids=[surviving.id],
+                )
+                results = {r.memory.id: r for r in store.search("review", viewers="alice")}
+                self.assertEqual(set(results), {current.id, neighbor.id})
+                self.assertFalse(any(link.relation is Relationship.RELATED_TO
+                                     for link in results[current.id].links))
+
+
 class UpgradeTests(AudienceCase):
+    def test_version_4_database_adds_lineage_without_changing_old_memories(self):
+        path = Path(self.temp_dir.name) / "v4.sqlite3"
+        store = MemoryStore(path)
+        legacy = store.add_memory("Launch plan", "fact", channel="design", speaker="alice")
+        with store._transaction() as connection:
+            connection.execute("DROP TABLE memory_sources")
+            connection.execute("DROP TABLE messages")
+            connection.execute("ALTER TABLE memories DROP COLUMN has_sources")
+            connection.execute("ALTER TABLE memories DROP COLUMN stale_at")
+            connection.execute("PRAGMA user_version = 4")
+        reopened = MemoryStore(path)
+        reopened.join_channel("design", "alice")
+        self.assertEqual(reopened.get_memory(legacy.id).content, "Launch plan")
+        self.assertEqual([r.memory.id for r in reopened.search("launch", viewers="alice")], [legacy.id])
+        source = reopened.for_writer("alice").add_message("Launch plan confirmed", channel="design")
+        derived = reopened.for_writer("alice").add_memory(
+            "Launch confirmed", "fact", channel="design", source_message_ids=[source.id]
+        )
+        self.assertEqual([m.id for m in reopened.sources_of(derived.id)], [source.id])
+        with reopened._transaction(write=False) as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
+
     def test_version_2_channel_key_index_is_rebuilt_for_speakers(self):
         path = Path(self.temp_dir.name) / "v2.sqlite3"
         store = MemoryStore(path)
@@ -923,7 +1109,7 @@ class UpgradeTests(AudienceCase):
             speaker="bob", memory_key="review",
         )
         with reopened._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
         self.assertEqual(len(reopened.list_memories()), 2)
 
     def test_a_version_0_2_database_is_upgraded_in_place(self):
@@ -942,7 +1128,7 @@ class UpgradeTests(AudienceCase):
         MemoryStore(path)  # opening again changes nothing
 
         with store._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
         old = store.get_memory("old")
         self.assertEqual((old.channel, old.speaker), (None, None))
         self.assertEqual([r.memory.id for r in store.search("launch")], ["old"])

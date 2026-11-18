@@ -447,7 +447,7 @@ class MemoryStoreTests(unittest.TestCase):
             {(a2.id, a1.id), (b2.id, b1.id), (c1.id, c2.id)},
         )
         with reopened._transaction() as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
 
     def test_a_version_0_1_database_is_upgraded_in_place(self):
         path = Path(self.temp_dir.name) / "v0.1.sqlite3"

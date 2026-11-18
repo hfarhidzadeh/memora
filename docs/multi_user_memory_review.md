@@ -721,6 +721,22 @@ mechanism; the raw store and SQLite file need trusted ownership. Delegation
 events are recorded as database rows, not immutable source messages as the
 full proposal describes.
 
+**Source lineage and retraction, 2026-11-18.** Callers can record immutable
+attributed source messages and list their IDs when writing a derived memory.
+The source list is stored as `memory_sources`. Audience checks intersect the
+memory's channel with every source message's channel before retrieval,
+including link traversal and embedding. A speaker or workspace admin can
+retract a source message: its content becomes a tombstone, every dependent
+memory is marked stale and archived, and its embeddings are removed. Stale
+memories are withheld from all ordinary read paths and cannot be restored.
+Trusted code sees a rebuild queue and may write a new derivation from remaining
+valid sources. This slice does not generate replacement prose automatically,
+infer source lists for existing memories, index raw messages in text search, or
+guarantee physical erasure from SQLite backups and free pages. Derivations of
+derivations must explicitly carry forward the complete raw-message source list
+and parent audience constraints; source text is not checked against derived
+content.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every
@@ -735,8 +751,8 @@ full proposal describes.
   (a member of both channels does see the link). They are not yet covered by
   an experiment with many trials. Sixteen deliberate faults put into the
   store, one at a time, were each caught by these tests.
-- **Not built:** write authentication, a standalone dispute table, the deletion
-  cascade (rule 3) and who-knows-what.
+- **Not built:** write authentication, a standalone dispute table, automatic
+  regeneration of stale derivations, physical erasure and who-knows-what.
   A read without `viewers` uses every
   memory on an unguarded store; guarded stores reject it.
 

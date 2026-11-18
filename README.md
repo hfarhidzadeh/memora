@@ -253,9 +253,44 @@ Limits:
 - The store does not authenticate identities. `add_admin`, membership changes,
   direct administrative writes, and the SQLite file require trusted code.
 - Access counts and pruning are shared by everyone in the store.
-- A standalone dispute table and deletion cascades are not implemented. The
-  broader design is in
+- A standalone dispute table and automatic regeneration of stale derivations
+  are not implemented. The broader design is in
   [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
+
+### Source messages and retraction
+
+Use source messages when a claim or summary is derived from human text:
+
+```python
+writer = store.for_writer("alice")
+message = writer.add_message("The launch moved to Monday.", channel="design")
+claim = writer.add_memory(
+    "The launch is Monday.", "fact", channel="design", memory_key="launch",
+    source_message_ids=[message.id],
+)
+store.for_viewers("bob").sources_of(claim.id)  # the attributed source message
+writer.retract_message(message.id)
+store.stale_memories()                           # trusted rebuild queue
+```
+
+A derived memory is readable only by current members of its own channel **and
+every source message's channel**. A writer must currently belong to each source
+channel. Retraction replaces the message content with a tombstone, marks every
+memory listing it as a source stale, archives those memories, and removes their
+embeddings. Search, history, direct reads and link traversal exclude stale
+memories. `restore` cannot reactivate one. Rebuild by recomputing its content
+and adding a new memory with only valid source message IDs; the store cannot
+regenerate model-written text itself. Trusted code can inspect the old source
+list with `sources_of(memory_id, include_stale=True)`.
+
+Existing memories without `source_message_ids` retain their previous behavior
+and cannot be invalidated through message retraction. Source messages are
+retrievable by ID, but are not yet indexed by text search. Tombstoning is a
+logical deletion; SQLite backups or free pages may retain older bytes. When
+deriving from another memory, the caller must carry forward its complete raw
+source-message list and preserve the parent's channel restrictions; the store
+does not track parent-memory dependencies or verify that source text supports
+the derived claim.
 
 Why leave hidden memories out before ranking instead of dropping them from the
 results? Because the scores of the memories a viewer can see depend on the

@@ -16,7 +16,7 @@ from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
 
 from .embeddings import Embedder
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class MemoryType(str, Enum):
@@ -77,6 +77,20 @@ class Memory:
     asserted_as_admin: bool = False
     fact_subject: Optional[str] = None
     asserted_as_delegate: bool = False
+    stale_at: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class Message:
+    """An attributed source message; retraction replaces its content with a tombstone."""
+
+    id: str
+    channel: str
+    speaker: str
+    content: Optional[str]
+    said_at: str
+    retracted_at: Optional[str]
+    retracted_by: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -157,6 +171,12 @@ class AudienceReader:
     def get_memory(self, memory_id: str) -> Optional[Memory]:
         return self._store.get_memory(memory_id, viewers=self._viewers)
 
+    def get_message(self, message_id: str) -> Optional[Message]:
+        return self._store.get_message(message_id, viewers=self._viewers)
+
+    def sources_of(self, memory_id: str) -> list[Message]:
+        return self._store.sources_of(memory_id, viewers=self._viewers)
+
     def history(self, memory_id: str) -> list[Memory]:
         return self._store.history(memory_id, viewers=self._viewers)
 
@@ -182,12 +202,23 @@ class ChannelWriter:
         channel: str, memory_key: Optional[str] = None,
         fact_subject: Optional[str] = None, source: str = "conversation",
         confidence: float = 0.8, importance: float = 0.5,
+        source_message_ids: Optional[Iterable[str]] = None,
     ) -> Memory:
         return self._store._add_memory(
             content, kind, channel=channel, speaker=self._member_id,
             memory_key=memory_key, fact_subject=fact_subject, source=source,
             confidence=confidence, importance=importance, check_membership=True,
+            source_message_ids=source_message_ids,
         )
+
+    def add_message(self, content: str, *, channel: str) -> Message:
+        return self._store._add_message(
+            content, channel=channel, speaker=self._member_id,
+            check_membership=True,
+        )
+
+    def retract_message(self, message_id: str) -> None:
+        self._store.retract_message(message_id, actor_id=self._member_id)
 
 
 def retention_score(
@@ -329,7 +360,10 @@ class MemoryStore:
                     CHECK (asserted_as_admin IN (0, 1)),
                 fact_subject TEXT,
                 asserted_as_delegate INTEGER NOT NULL DEFAULT 0
-                    CHECK (asserted_as_delegate IN (0, 1))
+                    CHECK (asserted_as_delegate IN (0, 1)),
+                stale_at TEXT,
+                has_sources INTEGER NOT NULL DEFAULT 0
+                    CHECK (has_sources IN (0, 1))
             )
             """,
             """
@@ -377,6 +411,28 @@ class MemoryStore:
                 revoked_by TEXT,
                 revoked_at TEXT,
                 PRIMARY KEY (channel, memory_key, member_id, granted_at)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                channel TEXT NOT NULL CHECK (length(trim(channel)) > 0),
+                speaker TEXT NOT NULL CHECK (length(trim(speaker)) > 0),
+                content TEXT,
+                said_at TEXT NOT NULL,
+                retracted_at TEXT,
+                retracted_by TEXT,
+                CHECK ((content IS NOT NULL AND length(trim(content)) > 0
+                        AND retracted_at IS NULL AND retracted_by IS NULL)
+                       OR (content IS NULL AND retracted_at IS NOT NULL
+                           AND retracted_by IS NOT NULL))
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS memory_sources (
+                memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+                message_id TEXT NOT NULL REFERENCES messages(id),
+                PRIMARY KEY (memory_id, message_id)
             )
             """,
         )
@@ -428,6 +484,7 @@ class MemoryStore:
                 ON delegations(channel, memory_key, member_id)
                 WHERE revoked_at IS NULL
             """,
+            "CREATE INDEX IF NOT EXISTS memory_sources_by_message ON memory_sources(message_id)",
         )
         with self._transaction() as connection:
             for statement in tables:
@@ -451,6 +508,12 @@ class MemoryStore:
             if "asserted_as_delegate" not in columns:
                 connection.execute(
                     "ALTER TABLE memories ADD COLUMN asserted_as_delegate INTEGER NOT NULL DEFAULT 0"
+                )
+            if "stale_at" not in columns:
+                connection.execute("ALTER TABLE memories ADD COLUMN stale_at TEXT")
+            if "has_sources" not in columns:
+                connection.execute(
+                    "ALTER TABLE memories ADD COLUMN has_sources INTEGER NOT NULL DEFAULT 0"
                 )
             if version < 2:
                 # Keys were unique across the whole store; the index is
@@ -510,6 +573,15 @@ class MemoryStore:
             asserted_as_admin=bool(row["asserted_as_admin"]),
             fact_subject=row["fact_subject"],
             asserted_as_delegate=bool(row["asserted_as_delegate"]),
+            stale_at=row["stale_at"],
+        )
+
+    @staticmethod
+    def _message_from_row(row: sqlite3.Row) -> Message:
+        return Message(
+            id=row["id"], channel=row["channel"], speaker=row["speaker"],
+            content=row["content"], said_at=row["said_at"],
+            retracted_at=row["retracted_at"], retracted_by=row["retracted_by"],
         )
 
     @staticmethod
@@ -565,23 +637,32 @@ class MemoryStore:
     def _visible(
         viewers: Optional[tuple[str, ...]], column: str = "memories.channel"
     ) -> tuple[str, list]:
-        """An SQL condition, and its parameters, that hides what viewers may not see.
+        """Hide stale memories and intersect their channel with source channels.
 
-        It keeps rows whose channel every viewer currently belongs to, so a
-        row without a channel is kept for no viewer. Membership is read in the
-        same transaction as the rows. Without viewers it keeps everything.
+        The outer SQL query must name the memory table ``memories``. Without
+        viewers, non-stale memories from every channel remain visible.
         """
         if viewers is None:
-            return "", []
+            return " AND memories.stale_at IS NULL", []
+        source_checks = (
+            " AND (memories.has_sources = 0 OR NOT EXISTS ("
+            "SELECT 1 FROM memory_sources AS ms "
+            "JOIN messages AS sm ON sm.id = ms.message_id "
+            "WHERE ms.memory_id = memories.id AND (sm.retracted_at IS NOT NULL "
+            "OR sm.channel NOT IN ("
+            "SELECT cm.channel FROM channel_members AS cm "
+            "WHERE cm.left_at IS NULL AND cm.member_id IN ({}) "
+            "GROUP BY cm.channel HAVING COUNT(*) = ?))))"
+        ).format(",".join("?" for _ in viewers))
         return (
-            " AND {} IN ("
+            " AND memories.stale_at IS NULL AND {} IN ("
             "SELECT channel_members.channel FROM channel_members "
             "WHERE channel_members.left_at IS NULL "
             "AND channel_members.member_id IN ({}) "
-            "GROUP BY channel_members.channel HAVING COUNT(*) = ?)".format(
-                column, ",".join("?" for _ in viewers)
+            "GROUP BY channel_members.channel HAVING COUNT(*) = ?){}".format(
+                column, ",".join("?" for _ in viewers), source_checks
             ),
-            [*viewers, len(viewers)],
+            [*viewers, len(viewers), *viewers, len(viewers)],
         )
 
     def join_channel(self, channel: str, member_id: str) -> None:
@@ -673,6 +754,127 @@ class MemoryStore:
                 "SELECT 1 FROM admins WHERE member_id = ?", (member_id,)
             ).fetchone() is not None
 
+    def add_message(self, content: str, *, channel: str, speaker: str) -> Message:
+        """Record an attributed source through the trusted store interface."""
+        if self.require_writer:
+            raise ValueError("this store requires a bound writer for user-facing writes")
+        return self._add_message(
+            content, channel=channel, speaker=speaker, check_membership=False
+        )
+
+    def _add_message(
+        self, content: str, *, channel: str, speaker: str,
+        check_membership: bool,
+    ) -> Message:
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("content must not be empty")
+        channel = self._name(channel, "channel")
+        speaker = self._name(speaker, "speaker")
+        message_id, now = uuid.uuid4().hex, self._now()
+        with self._transaction() as connection:
+            if check_membership and not connection.execute(
+                """SELECT 1 FROM channel_members WHERE channel = ?
+                AND member_id = ? AND left_at IS NULL""", (channel, speaker)
+            ).fetchone():
+                raise ValueError("writer is not a current channel member")
+            connection.execute(
+                """INSERT INTO messages (id, channel, speaker, content, said_at)
+                VALUES (?, ?, ?, ?, ?)""",
+                (message_id, channel, speaker, content.strip(), now),
+            )
+        return Message(message_id, channel, speaker, content.strip(), now, None)
+
+    def get_message(
+        self, message_id: str, *,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+    ) -> Optional[Message]:
+        """Read a source message; a retracted message is only an admin tombstone."""
+        viewer_ids = self._read_viewers(viewers)
+        sql = "SELECT * FROM messages WHERE id = ?"
+        parameters: list[object] = [message_id]
+        if viewer_ids is not None:
+            sql += (
+                " AND retracted_at IS NULL AND channel IN ("
+                "SELECT channel FROM channel_members WHERE left_at IS NULL "
+                "AND member_id IN ({}) GROUP BY channel HAVING COUNT(*) = ?)"
+            ).format(",".join("?" for _ in viewer_ids))
+            parameters.extend((*viewer_ids, len(viewer_ids)))
+        with self._transaction(write=False) as connection:
+            row = connection.execute(sql, parameters).fetchone()
+            return self._message_from_row(row) if row is not None else None
+
+    def sources_of(
+        self, memory_id: str, *,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+        include_stale: bool = False,
+    ) -> list[Message]:
+        """Return a memory's declared source messages in timestamp order."""
+        viewer_ids = self._read_viewers(viewers)
+        if include_stale and viewer_ids is not None:
+            raise ValueError("stale lineage is administrative only")
+        visible, parameters = (
+            ("", []) if include_stale else self._visible(viewer_ids)
+        )
+        with self._transaction(write=False) as connection:
+            if not connection.execute(
+                "SELECT 1 FROM memories WHERE id = ?" + visible,
+                [memory_id, *parameters],
+            ).fetchone():
+                return []
+            rows = connection.execute(
+                """SELECT messages.* FROM messages
+                JOIN memory_sources ON memory_sources.message_id = messages.id
+                WHERE memory_sources.memory_id = ?
+                ORDER BY messages.said_at, messages.id""",
+                (memory_id,),
+            ).fetchall()
+            return [self._message_from_row(row) for row in rows]
+
+    def retract_message(self, message_id: str, *, actor_id: str) -> None:
+        """Tombstone a speaker's message and stale all declared derivations."""
+        actor_id = self._name(actor_id, "actor_id")
+        now = self._now()
+        with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT speaker, retracted_at FROM messages WHERE id = ?",
+                (message_id,),
+            ).fetchone()
+            admin = connection.execute(
+                "SELECT 1 FROM admins WHERE member_id = ?", (actor_id,)
+            ).fetchone() is not None
+            if row is None or row["retracted_at"] is not None or (
+                row["speaker"] != actor_id and not admin
+            ):
+                raise ValueError("message is not available for retraction")
+            connection.execute(
+                """UPDATE messages SET content = NULL, retracted_at = ?,
+                retracted_by = ? WHERE id = ?""",
+                (now, actor_id, message_id),
+            )
+            affected = "SELECT memory_id FROM memory_sources WHERE message_id = ?"
+            connection.execute(
+                """UPDATE memories SET stale_at = COALESCE(stale_at, ?),
+                archived_at = COALESCE(archived_at, ?), updated_at = ?
+                WHERE id IN ({})""".format(affected),
+                (now, now, now, message_id),
+            )
+            connection.execute(
+                "DELETE FROM embeddings WHERE memory_id IN ({})".format(affected),
+                (message_id,),
+            )
+
+    def stale_memories(self, *, limit: int = 100) -> list[Memory]:
+        """Administrative queue of derivations that need rebuilding."""
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        with self._transaction(write=False) as connection:
+            return [self._memory_from_row(row) for row in connection.execute(
+                """SELECT * FROM memories WHERE stale_at IS NOT NULL
+                AND archived_at = stale_at AND superseded_by IS NULL
+                ORDER BY stale_at, id LIMIT ?""",
+                (limit,),
+            )]
+
     def grant_delegation(
         self, channel: str, memory_key: str, member_id: str, *, granted_by: str
     ) -> None:
@@ -750,6 +952,7 @@ class MemoryStore:
         channel: Optional[str] = None,
         speaker: Optional[str] = None,
         fact_subject: Optional[str] = None,
+        source_message_ids: Optional[Iterable[str]] = None,
     ) -> Memory:
         if self.require_writer:
             raise ValueError("this store requires a bound writer for user-facing writes")
@@ -757,6 +960,7 @@ class MemoryStore:
             content, kind, memory_key=memory_key, source=source,
             confidence=confidence, importance=importance, channel=channel,
             speaker=speaker, fact_subject=fact_subject, check_membership=False,
+            source_message_ids=source_message_ids,
         )
 
     def _add_memory(
@@ -764,6 +968,7 @@ class MemoryStore:
         memory_key: Optional[str], source: str, confidence: float,
         importance: float, channel: Optional[str], speaker: Optional[str],
         fact_subject: Optional[str], check_membership: bool,
+        source_message_ids: Optional[Iterable[str]],
     ) -> Memory:
         """Store a memory; a keyed channel claim belongs to its speaker.
 
@@ -792,6 +997,14 @@ class MemoryStore:
                 raise ValueError("personal facts require a channel and memory_key")
         if check_membership and channel is None:
             raise ValueError("bound writers require a channel")
+        if isinstance(source_message_ids, str):
+            raise ValueError("source_message_ids must be message IDs, not a string")
+        source_ids = tuple(dict.fromkeys(
+            self._name(message_id, "source message ID")
+            for message_id in (source_message_ids or ())
+        ))
+        if source_message_ids is not None and not source_ids:
+            raise ValueError("source_message_ids must not be empty")
         self._validate_unit_interval(confidence, "confidence")
         self._validate_unit_interval(importance, "importance")
         try:
@@ -811,6 +1024,19 @@ class MemoryStore:
                 AND member_id = ? AND left_at IS NULL""", (channel, speaker)
             ).fetchone():
                 raise ValueError("writer is not a current channel member")
+            for source_id in source_ids:
+                source_row = connection.execute(
+                    """SELECT channel FROM messages
+                    WHERE id = ? AND retracted_at IS NULL""", (source_id,)
+                ).fetchone()
+                if source_row is None or (
+                    check_membership and not connection.execute(
+                        """SELECT 1 FROM channel_members
+                        WHERE channel = ? AND member_id = ? AND left_at IS NULL""",
+                        (source_row["channel"], speaker),
+                    ).fetchone()
+                ):
+                    raise ValueError("source message is unavailable to the writer")
             predecessors = []
             conflicts = []
             asserted_as_admin = bool(
@@ -899,8 +1125,9 @@ class MemoryStore:
                 INSERT INTO memories (
                     id, kind, content, memory_key, source, confidence,
                     importance, created_at, updated_at, channel, speaker,
-                    asserted_as_admin, fact_subject, asserted_as_delegate
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    asserted_as_admin, fact_subject, asserted_as_delegate,
+                    has_sources
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     memory_id,
@@ -917,8 +1144,14 @@ class MemoryStore:
                     int(asserted_as_admin),
                     fact_subject,
                     int(asserted_as_delegate),
+                    int(bool(source_ids)),
                 ),
             )
+            if source_ids:
+                connection.executemany(
+                    "INSERT INTO memory_sources (memory_id, message_id) VALUES (?, ?)",
+                    ((memory_id, source_id) for source_id in source_ids),
+                )
             if self.embedder is not None:
                 self._store_vector(connection, memory_id, vector)
 
@@ -946,7 +1179,9 @@ class MemoryStore:
             "UPDATE memories SET superseded_by = ?, updated_at = ? WHERE id = ?",
             (new_id, now, old_id),
         )
-        if self.link_carryover is LinkCarryover.COPY:
+        if self.link_carryover is LinkCarryover.COPY and connection.execute(
+            "SELECT stale_at FROM memories WHERE id = ?", (old_id,)
+        ).fetchone()["stale_at"] is None:
             connection.execute(
                 """
                 INSERT INTO relationships (source_id, target_id, relation, created_at)
@@ -1141,6 +1376,8 @@ class MemoryStore:
                 raise ValueError("memory not found: {}".format(memory_id))
             if row["archived_at"] is None:
                 raise ValueError("memory is already active: {}".format(memory_id))
+            if row["stale_at"] is not None:
+                raise ValueError("stale memory must be rebuilt from valid sources")
             if row["superseded_by"] is not None:
                 raise ValueError(
                     "memory was superseded by {} and cannot be restored".format(
@@ -1834,7 +2071,12 @@ class MemoryStore:
         vectors = self._embed([row["content"] for row in rows])
         with self._transaction() as connection:
             for row, vector in zip(rows, vectors):
-                self._store_vector(connection, row["id"], vector)
+                if connection.execute(
+                    """SELECT 1 FROM memories WHERE id = ?
+                    AND archived_at IS NULL AND stale_at IS NULL""",
+                    (row["id"],),
+                ).fetchone():
+                    self._store_vector(connection, row["id"], vector)
 
     def _set_activity(
         self,
