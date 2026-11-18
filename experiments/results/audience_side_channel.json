@@ -1,0 +1,198 @@
+{
+  "trials": 200,
+  "worlds": [
+    "none",
+    "absent",
+    "present-1",
+    "present-5",
+    "present-20",
+    "shared"
+  ],
+  "settings": {
+    "vocabulary": 500,
+    "words_per_memory": 12,
+    "visible": 200,
+    "hidden": 50,
+    "present_counts": [
+      1,
+      5,
+      20
+    ],
+    "shared_count": 5
+  },
+  "summary": {
+    "none": {
+      "after": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "before": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "built": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      }
+    },
+    "absent": {
+      "after": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "before": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "built": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      }
+    },
+    "present-1": {
+      "after": {
+        "positive": 200,
+        "zero": 0,
+        "negative": 0,
+        "mean_d": 0.04604516151082656,
+        "min_d": 0.043673951805559164,
+        "max_d": 0.048445727697459806
+      },
+      "before": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "built": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      }
+    },
+    "present-5": {
+      "after": {
+        "positive": 200,
+        "zero": 0,
+        "negative": 0,
+        "mean_d": 0.11810627676369924,
+        "min_d": 0.11369191192200562,
+        "max_d": 0.12110693141713469
+      },
+      "before": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "built": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      }
+    },
+    "present-20": {
+      "after": {
+        "positive": 200,
+        "zero": 0,
+        "negative": 0,
+        "mean_d": 0.22242740494065644,
+        "min_d": 0.21875167198308304,
+        "max_d": 0.22345683180001125
+      },
+      "before": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      },
+      "built": {
+        "positive": 0,
+        "zero": 200,
+        "negative": 0,
+        "mean_d": 0.0,
+        "min_d": 0.0,
+        "max_d": 0.0
+      }
+    },
+    "shared": {
+      "after": {
+        "positive": 200,
+        "zero": 0,
+        "negative": 0,
+        "mean_d": 0.19153685322029013,
+        "min_d": 0.11942536265107723,
+        "max_d": 0.6745911556225841
+      },
+      "before": {
+        "positive": 200,
+        "zero": 0,
+        "negative": 0,
+        "mean_d": 0.1816103799721795,
+        "min_d": 0.12495534379800571,
+        "max_d": 0.6627037798517452
+      },
+      "built": {
+        "positive": 200,
+        "zero": 0,
+        "negative": 0,
+        "mean_d": 0.1816103799721795,
+        "min_d": 0.12495534379800571,
+        "max_d": 0.6627037798517452
+      }
+    },
+    "raw_score_shift": {
+      "after_changed": 200,
+      "after_mean_relative_shift": 0.011701080386711133,
+      "before_changed": 0,
+      "built_changed": 0
+    },
+    "built_differs_from_before": 0
+  },
+  "decision": {
+    "rule_1_probe_works": true,
+    "rule_2_negative_control_holds": true,
+    "rule_3_after_arm_leaks": true,
+    "rule_3_before_arm_clean": true,
+    "rule_3_built_arm_clean": true,
+    "rule_4_built_matches_before": true,
+    "verdict": "H2 supported",
+    "verdict_on_the_fix": "the built fix closes the channel"
+  }
+}

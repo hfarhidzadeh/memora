@@ -2,6 +2,7 @@
 
 from .embeddings import Embedder, NGramHashEmbedder, SentenceTransformerEmbedder
 from .store import (
+    AudienceReader,
     Link,
     LinkCarryover,
     Memory,
@@ -14,6 +15,7 @@ from .store import (
 )
 
 __all__ = [
+    "AudienceReader",
     "Embedder",
     "Link",
     "LinkCarryover",

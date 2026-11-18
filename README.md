@@ -26,6 +26,9 @@ conservative memory pruning in a small Python package backed by SQLite.
   sets to test knowledge updates.
 - Lets you choose what happens to a memory's links when a newer version
   replaces it (`--link-carryover keep|copy|topic`).
+- Records the channel a memory was said in and who said it, and can search as
+  a named set of viewers who see only the channels they all belong to
+  (Python API only; see [Channels and viewers](#channels-and-viewers)).
 - Keeps all data in a local SQLite file. There are no runtime dependencies;
   the optional semantic embedding backend also runs locally.
 
@@ -163,6 +166,78 @@ caller can use them to stay silent when even the best match is weak; see
 Each search counts as an access, which protects memories from pruning. Use
 `search --peek` (or `record_access=False` in Python) for exploratory or
 evaluation queries that should not affect pruning.
+
+## Channels and viewers
+
+A first step towards memory shared by several people. It is available from
+Python only; the command line has no options for it yet.
+
+```python
+from dynmemory import MemoryStore
+
+store = MemoryStore("./shared.sqlite3", require_viewers=True)
+store.join_channel("design", "alice")
+store.join_channel("design", "bob")
+store.join_channel("board", "dana")
+
+store.add_memory("The launch is on Friday.", "fact", channel="design", speaker="alice")
+store.add_memory("The launch may be cancelled.", "fact", channel="board", speaker="dana")
+
+bob = store.for_viewers("bob")
+bob.search("launch")                          # the design memory only
+store.for_viewers(["bob", "dana"]).search("launch")  # nothing: no shared channel
+store.search("launch")                        # raises: viewers are required
+```
+
+- **Who sees what.** `viewers` names the people who will see the answer. A
+  memory is visible if every viewer is a current member of its channel.
+  `for_viewers` binds an audience to `search`, `get_memory`, `history` and
+  `list_memories`. Obtain viewer identities from a trusted source and give
+  the bound reader to code serving those people. The store also accepts a
+  `viewers` argument directly on each of these methods.
+- **Guard user-facing reads.** `require_viewers=True` makes those four store
+  methods raise if the audience is omitted. The setting belongs to the store
+  instance, not the database file. The CLI opens an unguarded store and is an
+  administrative tool for someone who can access the SQLite file.
+- **Membership is checked when reading.** Someone who joins a channel can read
+  everything already in it. Someone who leaves (`leave_channel`) loses it at
+  the next read, including what they said themselves.
+- **Hidden memories are left out before embedding and ranking.** They change
+  no score, add no linked neighbour and appear in no link, including
+  `contradicts` links and links carried over between versions.
+- **A memory without a channel is hidden from every viewer.** Memories written
+  before channels existed have none.
+- **Keys belong to a channel.** The same key in two channels names two
+  separate memories, and a memory can only supersede one in its own channel.
+  A write in one channel therefore never replaces a memory in another.
+
+Limits:
+
+- A store opened without `require_viewers=True` still permits unrestricted
+  reads for single-user and administrative use. Applications must keep that
+  store and the database file away from untrusted callers.
+- Writes are not checked: anyone who can call the store can add a memory to
+  any channel or change its members.
+- Access counts and pruning are shared by everyone in the store.
+- There are no admins, disputes or deletion cascades yet. The design they
+  belong to is in
+  [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
+
+Why leave hidden memories out before ranking instead of dropping them from the
+results? Because the scores of the memories a viewer can see depend on the
+ones they cannot. `experiments/audience_side_channel.py` shows this on
+synthetic data (200 trials, lexical search). A viewer who searched for a word
+next to a nonsense word could tell, in 200 of 200 trials, that the word
+occurred in a channel they were not in, even in a single memory, when hidden
+memories were dropped after ranking. With `viewers` the two searches were
+identical in 200 of 200 trials, and the probe still fired when the word was in
+the viewer's own channel (positive control). The data were written alongside
+the code, so this shows the mechanism, not how often it matters in real use.
+Results: `experiments/results/audience_side_channel.md`.
+
+```bash
+python3 -I experiments/audience_side_channel.py
+```
 
 ## Embeddings
 

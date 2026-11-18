@@ -16,7 +16,7 @@ from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
 
 from .embeddings import Embedder
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class MemoryType(str, Enum):
@@ -72,6 +72,8 @@ class Memory:
     access_count: int
     archived_at: Optional[str]
     superseded_by: Optional[str]
+    channel: Optional[str] = None
+    speaker: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +113,55 @@ class PruneCandidate:
     score: float
 
 
+class AudienceReader:
+    """Read-only view of a store for a fixed, nonempty set of viewers.
+
+    The caller must obtain the viewer identities from a trusted source. Each
+    read still checks current channel membership, so leaving takes effect on
+    the next call.
+    """
+
+    def __init__(
+        self, store: MemoryStore, viewers: Union[str, Iterable[str]]
+    ) -> None:
+        self._store = store
+        viewer_ids = store._viewer_ids(viewers)
+        if viewer_ids is None:
+            raise ValueError("viewers must name at least one member")
+        self._viewers = viewer_ids
+
+    def search(
+        self,
+        query: str,
+        *,
+        kind: Optional[Union[MemoryType, str]] = None,
+        limit: int = 10,
+        record_access: bool = True,
+    ) -> list[SearchResult]:
+        return self._store.search(
+            query,
+            kind=kind,
+            limit=limit,
+            record_access=record_access,
+            viewers=self._viewers,
+        )
+
+    def get_memory(self, memory_id: str) -> Optional[Memory]:
+        return self._store.get_memory(memory_id, viewers=self._viewers)
+
+    def history(self, memory_id: str) -> list[Memory]:
+        return self._store.history(memory_id, viewers=self._viewers)
+
+    def list_memories(
+        self, *, include_archived: bool = False, limit: int = 100
+    ) -> list[Memory]:
+        return self._store.list_memories(
+            include_archived=include_archived,
+            limit=limit,
+            viewers=self._viewers,
+        )
+
+
 def retention_score(
     importance: float,
     confidence: float,
@@ -133,6 +184,13 @@ class MemoryStore:
     Without an embedder, search ranks memories lexically. With one, it fuses
     the lexical and vector rankings with reciprocal rank fusion. Either way,
     results are then expanded by one relationship hop.
+
+    A memory may carry the ``channel`` it was said in and its ``speaker``.
+    Reads that pass ``viewers`` use only the memories in channels that every
+    viewer currently belongs to. By default, reads without ``viewers`` use
+    everything for single-user or administrative use. ``require_viewers=True``
+    rejects those reads, and ``for_viewers`` binds a reader to one audience.
+    Writes are not checked against membership.
     """
 
     _TOKEN_PATTERN = re.compile(r"\w+", re.UNICODE)
@@ -153,8 +211,10 @@ class MemoryStore:
         *,
         embedder: Optional[Embedder] = None,
         link_carryover: Union[LinkCarryover, str] = LinkCarryover.KEEP,
+        require_viewers: bool = False,
     ) -> None:
         self.embedder = embedder
+        self.require_viewers = require_viewers
         try:
             self.link_carryover = LinkCarryover(link_carryover)
         except ValueError as error:
@@ -212,7 +272,7 @@ class MemoryStore:
             connection.execute("COMMIT")
 
     def _initialize(self) -> None:
-        schema = (
+        tables = (
             """
             CREATE TABLE IF NOT EXISTS memories (
                 id TEXT PRIMARY KEY,
@@ -231,21 +291,10 @@ class MemoryStore:
                 last_accessed_at TEXT,
                 access_count INTEGER NOT NULL DEFAULT 0 CHECK (access_count >= 0),
                 archived_at TEXT,
-                superseded_by TEXT REFERENCES memories(id)
+                superseded_by TEXT REFERENCES memories(id),
+                channel TEXT,
+                speaker TEXT
             )
-            """,
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_key
-                ON memories(memory_key)
-                WHERE memory_key IS NOT NULL AND archived_at IS NULL
-            """,
-            """
-            CREATE INDEX IF NOT EXISTS memories_active_kind
-                ON memories(archived_at, kind)
-            """,
-            """
-            CREATE INDEX IF NOT EXISTS memories_superseded_by
-                ON memories(superseded_by)
             """,
             """
             CREATE TABLE IF NOT EXISTS relationships (
@@ -268,11 +317,73 @@ class MemoryStore:
                 PRIMARY KEY (memory_id, model)
             )
             """,
+            # One row per stay: leaving closes the row, joining again adds one.
+            """
+            CREATE TABLE IF NOT EXISTS channel_members (
+                channel TEXT NOT NULL CHECK (length(trim(channel)) > 0),
+                member_id TEXT NOT NULL CHECK (length(trim(member_id)) > 0),
+                joined_at TEXT NOT NULL,
+                left_at TEXT
+            )
+            """,
+        )
+        indexes = (
+            # A key names one active memory per channel; memories without a
+            # channel share one namespace, as before channels existed.
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_key
+                ON memories(memory_key)
+                WHERE memory_key IS NOT NULL AND archived_at IS NULL
+                  AND channel IS NULL
+            """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_channel_key
+                ON memories(channel, memory_key)
+                WHERE memory_key IS NOT NULL AND archived_at IS NULL
+                  AND channel IS NOT NULL
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS memories_active_kind
+                ON memories(archived_at, kind)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS memories_superseded_by
+                ON memories(superseded_by)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS memories_channel
+                ON memories(channel)
+            """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS one_current_membership
+                ON channel_members(channel, member_id)
+                WHERE left_at IS NULL
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS current_memberships_by_member
+                ON channel_members(member_id)
+                WHERE left_at IS NULL
+            """,
         )
         with self._transaction() as connection:
-            for statement in schema:
+            for statement in tables:
                 connection.execute(statement)
             version = connection.execute("PRAGMA user_version").fetchone()[0]
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(memories)")
+            }
+            for column in ("channel", "speaker"):
+                if column not in columns:
+                    connection.execute(
+                        "ALTER TABLE memories ADD COLUMN {} TEXT".format(column)
+                    )
+            if version < 2:
+                # Keys were unique across the whole store; the index is
+                # rebuilt below to cover only memories without a channel.
+                connection.execute("DROP INDEX IF EXISTS one_active_memory_per_key")
+            for statement in indexes:
+                connection.execute(statement)
             if version < 1:
                 # Key rewrites used to store supersedes edges as old -> new.
                 # Every relation now reads source -> target: new supersedes old.
@@ -295,6 +406,7 @@ class MemoryStore:
                     "WHERE " + legacy_edge
                 )
                 connection.execute("DELETE FROM relationships WHERE " + legacy_edge)
+            if version < SCHEMA_VERSION:
                 connection.execute("PRAGMA user_version = {}".format(SCHEMA_VERSION))
 
     @staticmethod
@@ -317,12 +429,145 @@ class MemoryStore:
             access_count=row["access_count"],
             archived_at=row["archived_at"],
             superseded_by=row["superseded_by"],
+            channel=row["channel"],
+            speaker=row["speaker"],
         )
 
     @staticmethod
     def _validate_unit_interval(value: float, name: str) -> None:
         if not math.isfinite(value) or not 0 <= value <= 1:
             raise ValueError("{} must be between 0 and 1".format(name))
+
+    @staticmethod
+    def _name(value: object, name: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("{} must not be empty".format(name))
+        return value.strip()
+
+    @classmethod
+    def _viewer_ids(
+        cls, viewers: Optional[Union[str, Iterable[str]]]
+    ) -> Optional[tuple[str, ...]]:
+        """The distinct viewers of a read, or ``None`` if it has no audience."""
+        if viewers is None:
+            return None
+        if isinstance(viewers, str):
+            viewers = (viewers,)
+        names = {cls._name(viewer, "a viewer") for viewer in viewers}
+        if not names:
+            # An empty audience would otherwise mean "no one to hide from".
+            raise ValueError("viewers must name at least one member")
+        return tuple(sorted(names))
+
+    def for_viewers(self, viewers: Union[str, Iterable[str]]) -> AudienceReader:
+        """Bind all user-facing reads to these viewers.
+
+        Give this reader, rather than the administrative store, to code that
+        serves people. Authentication and viewer identity are the caller's job.
+        """
+        viewer_ids = self._viewer_ids(viewers)
+        if viewer_ids is None:
+            raise ValueError("viewers must name at least one member")
+        return AudienceReader(self, viewer_ids)
+
+    def _read_viewers(
+        self, viewers: Optional[Union[str, Iterable[str]]]
+    ) -> Optional[tuple[str, ...]]:
+        viewer_ids = self._viewer_ids(viewers)
+        if viewer_ids is None and self.require_viewers:
+            raise ValueError("this store requires viewers for user-facing reads")
+        return viewer_ids
+
+    @staticmethod
+    def _visible(
+        viewers: Optional[tuple[str, ...]], column: str = "memories.channel"
+    ) -> tuple[str, list]:
+        """An SQL condition, and its parameters, that hides what viewers may not see.
+
+        It keeps rows whose channel every viewer currently belongs to, so a
+        row without a channel is kept for no viewer. Membership is read in the
+        same transaction as the rows. Without viewers it keeps everything.
+        """
+        if viewers is None:
+            return "", []
+        return (
+            " AND {} IN ("
+            "SELECT channel_members.channel FROM channel_members "
+            "WHERE channel_members.left_at IS NULL "
+            "AND channel_members.member_id IN ({}) "
+            "GROUP BY channel_members.channel HAVING COUNT(*) = ?)".format(
+                column, ",".join("?" for _ in viewers)
+            ),
+            [*viewers, len(viewers)],
+        )
+
+    def join_channel(self, channel: str, member_id: str) -> None:
+        """Add a member to a channel; joining twice changes nothing.
+
+        Access is decided by membership at the time of a read, so a new member
+        can read everything already in the channel.
+        """
+        channel = self._name(channel, "channel")
+        member_id = self._name(member_id, "member_id")
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO channel_members (channel, member_id, joined_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """,
+                (channel, member_id, self._now()),
+            )
+
+    def leave_channel(self, channel: str, member_id: str) -> None:
+        """End a membership.
+
+        From the next read the member no longer sees the channel's memories,
+        including the ones they said themselves. Leaving a channel the member
+        is not in is an error, so a misspelt name cannot pass for a removal.
+        """
+        channel = self._name(channel, "channel")
+        member_id = self._name(member_id, "member_id")
+        with self._transaction() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE channel_members SET left_at = ?
+                WHERE channel = ? AND member_id = ? AND left_at IS NULL
+                """,
+                (self._now(), channel, member_id),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError(
+                    "{} is not a member of {}".format(member_id, channel)
+                )
+
+    def members_of(self, channel: str) -> list[str]:
+        """The current members of a channel."""
+        with self._transaction(write=False) as connection:
+            return [
+                row["member_id"]
+                for row in connection.execute(
+                    """
+                    SELECT member_id FROM channel_members
+                    WHERE channel = ? AND left_at IS NULL ORDER BY member_id
+                    """,
+                    (self._name(channel, "channel"),),
+                )
+            ]
+
+    def channels_of(self, member_id: str) -> list[str]:
+        """The channels a member is currently in."""
+        with self._transaction(write=False) as connection:
+            return [
+                row["channel"]
+                for row in connection.execute(
+                    """
+                    SELECT channel FROM channel_members
+                    WHERE member_id = ? AND left_at IS NULL ORDER BY channel
+                    """,
+                    (self._name(member_id, "member_id"),),
+                )
+            ]
 
     def add_memory(
         self,
@@ -333,13 +578,26 @@ class MemoryStore:
         source: str = "conversation",
         confidence: float = 0.8,
         importance: float = 0.5,
+        channel: Optional[str] = None,
+        speaker: Optional[str] = None,
     ) -> Memory:
+        """Store a memory; writing a ``memory_key`` again replaces its active version.
+
+        ``channel`` is where the memory was said and ``speaker`` who said it.
+        A key belongs to its channel: the same key in two channels names two
+        separate memories, so a write in one channel never replaces a memory
+        in another.
+        """
         if not content or not content.strip():
             raise ValueError("content must not be empty")
         if memory_key is not None and not memory_key.strip():
             raise ValueError("memory_key must not be empty")
         if not source or not source.strip():
             raise ValueError("source must not be empty")
+        if channel is not None:
+            channel = self._name(channel, "channel")
+        if speaker is not None:
+            speaker = self._name(speaker, "speaker")
         self._validate_unit_interval(confidence, "confidence")
         self._validate_unit_interval(importance, "importance")
         try:
@@ -362,23 +620,25 @@ class MemoryStore:
                     """
                     SELECT id FROM memories
                     WHERE memory_key = ? AND superseded_by IS NULL
+                      AND channel IS ?
                     """,
-                    (memory_key,),
+                    (memory_key, channel),
                 ).fetchall()
                 connection.execute(
                     """
                     UPDATE memories SET archived_at = ?, updated_at = ?
                     WHERE memory_key = ? AND archived_at IS NULL
+                      AND channel IS ?
                     """,
-                    (now, now, memory_key),
+                    (now, now, memory_key, channel),
                 )
 
             connection.execute(
                 """
                 INSERT INTO memories (
                     id, kind, content, memory_key, source, confidence,
-                    importance, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    importance, created_at, updated_at, channel, speaker
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     memory_id,
@@ -390,6 +650,8 @@ class MemoryStore:
                     importance,
                     now,
                     now,
+                    channel,
+                    speaker,
                 ),
             )
             if self.embedder is not None:
@@ -446,7 +708,8 @@ class MemoryStore:
 
         ``supersedes`` also archives the target and records the source as its
         replacement, exactly as rewriting a memory key does. A source without
-        a key takes over the target's key.
+        a key takes over the target's key. Both must be in the same channel,
+        so every version of a fact has the same audience.
         """
         try:
             relation_type = Relationship(relation)
@@ -461,7 +724,7 @@ class MemoryStore:
                 row["id"]: row
                 for row in connection.execute(
                     """
-                    SELECT id, memory_key, created_at, rowid FROM memories
+                    SELECT id, memory_key, created_at, rowid, channel FROM memories
                     WHERE id IN (?, ?) AND archived_at IS NULL
                     """,
                     (source_id, target_id),
@@ -472,6 +735,10 @@ class MemoryStore:
 
             if relation_type is Relationship.SUPERSEDES:
                 newer, older = rows[source_id], rows[target_id]
+                if newer["channel"] != older["channel"]:
+                    raise ValueError(
+                        "a memory can only supersede one in the same channel"
+                    )
                 # Older databases store whole seconds; insertion order breaks ties.
                 if (newer["created_at"], newer["rowid"]) < (
                     older["created_at"],
@@ -502,31 +769,47 @@ class MemoryStore:
                 (source_id, target_id, relation_type.value, now),
             )
 
-    def get_memory(self, memory_id: str) -> Optional[Memory]:
+    def get_memory(
+        self,
+        memory_id: str,
+        *,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+    ) -> Optional[Memory]:
+        """Return a memory, or ``None`` if it is missing or hidden from ``viewers``."""
+        visible, visible_parameters = self._visible(self._read_viewers(viewers))
         with self._transaction(write=False) as connection:
             row = connection.execute(
-                "SELECT * FROM memories WHERE id = ?", (memory_id,)
+                "SELECT * FROM memories WHERE id = ?" + visible,
+                [memory_id] + visible_parameters,
             ).fetchone()
             return self._memory_from_row(row) if row is not None else None
 
-    def history(self, memory_id: str) -> list[Memory]:
+    def history(
+        self,
+        memory_id: str,
+        *,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+    ) -> list[Memory]:
         """Return every version of a memory, newest first.
 
         Works from any version: it follows ``superseded_by`` forward to the
         current version, then collects everything that version replaced,
-        directly or indirectly.
+        directly or indirectly. With ``viewers``, a memory hidden from them
+        has no history and hidden versions are left out.
         """
+        visible, visible_parameters = self._visible(self._read_viewers(viewers))
         with self._transaction(write=False) as connection:
             row = connection.execute(
-                "SELECT id, superseded_by FROM memories WHERE id = ?", (memory_id,)
+                "SELECT id, superseded_by FROM memories WHERE id = ?" + visible,
+                [memory_id] + visible_parameters,
             ).fetchone()
             if row is None:
                 return []
             seen = {row["id"]}
             while row["superseded_by"] is not None and row["superseded_by"] not in seen:
                 newer = connection.execute(
-                    "SELECT id, superseded_by FROM memories WHERE id = ?",
-                    (row["superseded_by"],),
+                    "SELECT id, superseded_by FROM memories WHERE id = ?" + visible,
+                    [row["superseded_by"]] + visible_parameters,
                 ).fetchone()
                 if newer is None:
                     break
@@ -539,12 +822,13 @@ class MemoryStore:
                     SELECT ?
                     UNION
                     SELECT memories.id FROM memories
-                    JOIN versions ON memories.superseded_by = versions.id
+                    JOIN versions ON memories.superseded_by = versions.id{0}
                 )
-                SELECT memories.* FROM memories JOIN versions USING (id)
+                SELECT memories.* FROM memories
+                JOIN versions ON memories.id = versions.id{0}
                 ORDER BY memories.created_at DESC, memories.rowid DESC
-                """,
-                (row["id"],),
+                """.format(visible),
+                [row["id"]] + visible_parameters * 2,
             ).fetchall()
             return [self._memory_from_row(version) for version in rows]
 
@@ -574,8 +858,9 @@ class MemoryStore:
                     """
                     SELECT id FROM memories
                     WHERE memory_key = ? AND archived_at IS NULL
+                      AND channel IS ?
                     """,
-                    (row["memory_key"],),
+                    (row["memory_key"], row["channel"]),
                 ).fetchone()
                 if holder is not None:
                     raise ValueError(
@@ -597,20 +882,26 @@ class MemoryStore:
             return self._memory_from_row(row)
 
     def list_memories(
-        self, *, include_archived: bool = False, limit: int = 100
+        self,
+        *,
+        include_archived: bool = False,
+        limit: int = 100,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
     ) -> list[Memory]:
+        """The most recently updated memories, only visible ones with ``viewers``."""
         if limit < 1:
             raise ValueError("limit must be positive")
-        clause = "" if include_archived else "WHERE archived_at IS NULL"
+        visible, visible_parameters = self._visible(self._read_viewers(viewers))
+        clause = "1" if include_archived else "archived_at IS NULL"
         with self._transaction(write=False) as connection:
             rows = connection.execute(
                 """
                 SELECT * FROM memories
-                {}
+                WHERE {}{}
                 ORDER BY updated_at DESC, id
                 LIMIT ?
-                """.format(clause),
-                (limit,),
+                """.format(clause, visible),
+                visible_parameters + [limit],
             ).fetchall()
             return [self._memory_from_row(row) for row in rows]
 
@@ -621,6 +912,7 @@ class MemoryStore:
         kind: Optional[Union[MemoryType, str]] = None,
         limit: int = 10,
         record_access: bool = True,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
     ) -> list[SearchResult]:
         """Rank active memories for a query.
 
@@ -628,6 +920,13 @@ class MemoryStore:
         the links behind its graph score, and every ``contradicts`` link to an
         active memory, even one cut off by ``limit`` or filtered out by
         ``kind``. A disputed memory therefore always shows that it is disputed.
+
+        ``viewers`` names the people who will see the answer (one member id or
+        several). The search then runs as if the store held only the memories
+        in channels that every viewer currently belongs to. Hidden memories are
+        left out before ranking, not after it, so they change no score, add no
+        graph neighbour and appear in no link. A memory without a channel is
+        hidden from every viewer.
         """
         if not query or not query.strip():
             raise ValueError("query must not be empty")
@@ -639,18 +938,20 @@ class MemoryStore:
                 kind_value = MemoryType(kind).value
             except ValueError as error:
                 raise ValueError("unsupported memory type: {}".format(kind)) from error
+        viewer_ids = self._read_viewers(viewers)
+        visible, visible_parameters = self._visible(viewer_ids)
 
         query_tokens = self._TOKEN_PATTERN.findall(query.lower())
         query_vector = None
         if self.embedder is not None:
-            self._embed_missing()
+            self._embed_missing(viewer_ids)
             query_vector = self._embed([query.strip()])[0]
         if not query_tokens and query_vector is None:
             return []
 
         with self._transaction(write=record_access) as connection:
-            sql = "SELECT * FROM memories WHERE archived_at IS NULL"
-            parameters = []
+            sql = "SELECT * FROM memories WHERE archived_at IS NULL" + visible
+            parameters = list(visible_parameters)
             if kind_value is not None:
                 sql += " AND kind = ?"
                 parameters.append(kind_value)
@@ -665,7 +966,7 @@ class MemoryStore:
             vector_scores = {}
             if query_vector is not None:
                 vector_scores = self._vector_scores(
-                    connection, active_memories, query_vector
+                    connection, active_memories, query_vector, viewer_ids
                 )
             if self.embedder is None:
                 direct_scores = lexical_scores
@@ -684,7 +985,7 @@ class MemoryStore:
                 memory_id: score / maximum_direct_score
                 for memory_id, score in direct_scores.items()
             }
-            seed_links = self._search_links(connection, seed_scores)
+            seed_links = self._search_links(connection, seed_scores, viewer_ids)
             graph_scores = {}
             for link in seed_links:
                 for seed_id, neighbor_id in (
@@ -725,7 +1026,7 @@ class MemoryStore:
                     )
 
             links_by_memory = {memory_id: set() for memory_id in ranked_ids}
-            result_links = self._search_links(connection, ranked_ids)
+            result_links = self._search_links(connection, ranked_ids, viewer_ids)
             active_disputants = self._active_ids(
                 connection,
                 {
@@ -735,6 +1036,7 @@ class MemoryStore:
                     for end in (link.source_id, link.target_id)
                     if end not in links_by_memory
                 },
+                viewer_ids,
             )
             for link in result_links:
                 for memory_id, other_id in (
@@ -872,12 +1174,18 @@ class MemoryStore:
         connection: sqlite3.Connection,
         memories: Mapping[str, Memory],
         query_vector: array,
+        viewers: Optional[tuple[str, ...]] = None,
     ) -> dict[str, float]:
         """Cosine similarities that reach the embedder's ``min_similarity``."""
+        visible, visible_parameters = self._visible(viewers)
         scores = {}
         for row in connection.execute(
-            "SELECT memory_id, vector FROM embeddings WHERE model = ?",
-            (self.embedder.name,),
+            """
+            SELECT embeddings.memory_id, embeddings.vector FROM embeddings
+            JOIN memories ON memories.id = embeddings.memory_id
+            WHERE embeddings.model = ? AND memories.archived_at IS NULL{}
+            """.format(visible),
+            [self.embedder.name] + visible_parameters,
         ):
             if row["memory_id"] not in memories or not row["vector"]:
                 continue
@@ -911,9 +1219,13 @@ class MemoryStore:
         return fused
 
     def _active_ids(
-        self, connection: sqlite3.Connection, memory_ids: Iterable[str]
+        self,
+        connection: sqlite3.Connection,
+        memory_ids: Iterable[str],
+        viewers: Optional[tuple[str, ...]] = None,
     ) -> set[str]:
         memory_ids = list(memory_ids)
+        visible, visible_parameters = self._visible(viewers)
         active = set()
         for start in range(0, len(memory_ids), self._ID_CHUNK):
             chunk = memory_ids[start:start + self._ID_CHUNK]
@@ -923,29 +1235,39 @@ class MemoryStore:
                 for row in connection.execute(
                     """
                     SELECT id FROM memories
-                    WHERE archived_at IS NULL AND id IN ({})
-                    """.format(placeholders),
-                    chunk,
+                    WHERE archived_at IS NULL AND id IN ({}){}
+                    """.format(placeholders, visible),
+                    chunk + visible_parameters,
                 )
             )
         return active
 
     def _search_links(
-        self, connection: sqlite3.Connection, memory_ids: Iterable[str]
+        self,
+        connection: sqlite3.Connection,
+        memory_ids: Iterable[str],
+        viewers: Optional[tuple[str, ...]] = None,
     ) -> list[Link]:
         """Links touching the given memories, as search should see them.
 
         With ``topic`` carryover, a link to an earlier version of a fact counts
-        as a link to its current version.
+        as a link to its current version. With ``viewers``, a link counts only
+        if both of its ends are visible, and so does every version it is
+        followed through.
         """
         memory_ids = list(memory_ids)
         if self.link_carryover is not LinkCarryover.TOPIC:
-            return self._links_touching(connection, memory_ids)
+            return self._links_touching(connection, memory_ids, viewers)
         links = self._links_touching(
-            connection, memory_ids + sorted(self._earlier_versions(connection, memory_ids))
+            connection,
+            memory_ids
+            + sorted(self._earlier_versions(connection, memory_ids, viewers)),
+            viewers,
         )
         current = self._current_versions(
-            connection, {end for link in links for end in (link.source_id, link.target_id)}
+            connection,
+            {end for link in links for end in (link.source_id, link.target_id)},
+            viewers,
         )
         resolved = set()
         for link in links:
@@ -960,9 +1282,13 @@ class MemoryStore:
         )
 
     def _earlier_versions(
-        self, connection: sqlite3.Connection, memory_ids: Sequence[str]
+        self,
+        connection: sqlite3.Connection,
+        memory_ids: Sequence[str],
+        viewers: Optional[tuple[str, ...]] = None,
     ) -> set[str]:
         """Every memory that the given memories replaced, directly or not."""
+        visible, visible_parameters = self._visible(viewers)
         earlier = set()
         for start in range(0, len(memory_ids), self._ID_CHUNK):
             chunk = tuple(memory_ids[start:start + self._ID_CHUNK])
@@ -972,23 +1298,32 @@ class MemoryStore:
                 for row in connection.execute(
                     """
                     WITH RECURSIVE versions(id) AS (
-                        SELECT id FROM memories WHERE superseded_by IN ({})
+                        SELECT id FROM memories
+                        WHERE superseded_by IN ({0}){1}
                         UNION
                         SELECT memories.id FROM memories
-                        JOIN versions ON memories.superseded_by = versions.id
+                        JOIN versions ON memories.superseded_by = versions.id{1}
                     )
                     SELECT id FROM versions
-                    """.format(placeholders),
-                    chunk,
+                    """.format(placeholders, visible),
+                    chunk + tuple(visible_parameters) * 2,
                 )
             )
         return earlier
 
     def _current_versions(
-        self, connection: sqlite3.Connection, memory_ids: Iterable[str]
+        self,
+        connection: sqlite3.Connection,
+        memory_ids: Iterable[str],
+        viewers: Optional[tuple[str, ...]] = None,
     ) -> dict[str, str]:
-        """Map each replaced memory to the newest version of its fact."""
+        """Map each replaced memory to the newest version of its fact.
+
+        With ``viewers``, a chain that passes through a hidden version maps to
+        nothing.
+        """
         memory_ids = list(memory_ids)
+        visible, visible_parameters = self._visible(viewers)
         current = {}
         for start in range(0, len(memory_ids), self._ID_CHUNK):
             chunk = tuple(memory_ids[start:start + self._ID_CHUNK])
@@ -999,25 +1334,36 @@ class MemoryStore:
                     """
                     WITH RECURSIVE chain(start_id, id) AS (
                         SELECT id, superseded_by FROM memories
-                        WHERE id IN ({}) AND superseded_by IS NOT NULL
+                        WHERE id IN ({0}) AND superseded_by IS NOT NULL{1}
                         UNION
                         SELECT chain.start_id, memories.superseded_by FROM chain
                         JOIN memories ON memories.id = chain.id
-                        WHERE memories.superseded_by IS NOT NULL
+                        WHERE memories.superseded_by IS NOT NULL{1}
                     )
                     SELECT chain.start_id, chain.id FROM chain
                     JOIN memories ON memories.id = chain.id
-                    WHERE memories.superseded_by IS NULL
-                    """.format(placeholders),
-                    chunk,
+                    WHERE memories.superseded_by IS NULL{1}
+                    """.format(placeholders, visible),
+                    chunk + tuple(visible_parameters) * 3,
                 )
             )
         return current
 
     def _links_touching(
-        self, connection: sqlite3.Connection, memory_ids: Iterable[str]
+        self,
+        connection: sqlite3.Connection,
+        memory_ids: Iterable[str],
+        viewers: Optional[tuple[str, ...]] = None,
     ) -> list[Link]:
         memory_ids = list(memory_ids)
+        visible, visible_parameters = self._visible(viewers)
+        both_ends_visible = ""
+        if viewers is not None:
+            both_ends_visible = "".join(
+                " AND EXISTS (SELECT 1 FROM memories "
+                "WHERE memories.id = relationships.{}{})".format(end, visible)
+                for end in ("source_id", "target_id")
+            )
         links = set()
         for start in range(0, len(memory_ids), self._ID_CHUNK):
             chunk = tuple(memory_ids[start:start + self._ID_CHUNK])
@@ -1025,9 +1371,9 @@ class MemoryStore:
             for row in connection.execute(
                 """
                 SELECT source_id, target_id, relation FROM relationships
-                WHERE source_id IN ({0}) OR target_id IN ({0})
-                """.format(placeholders),
-                chunk + chunk,
+                WHERE (source_id IN ({0}) OR target_id IN ({0})){1}
+                """.format(placeholders, both_ends_visible),
+                chunk + chunk + tuple(visible_parameters) * 2,
             ):
                 links.add(
                     Link(
@@ -1083,17 +1429,18 @@ class MemoryStore:
             ),
         )
 
-    def _embed_missing(self) -> None:
-        """Embed active memories that have no vector from the current model."""
+    def _embed_missing(self, viewers: Optional[tuple[str, ...]] = None) -> None:
+        """Embed only active memories visible to this search's viewers."""
+        visible, visible_parameters = self._visible(viewers)
         with self._transaction(write=False) as connection:
             rows = connection.execute(
                 """
                 SELECT id, content FROM memories
-                WHERE archived_at IS NULL AND id NOT IN (
+                WHERE archived_at IS NULL{} AND id NOT IN (
                     SELECT memory_id FROM embeddings WHERE model = ?
                 )
-                """,
-                (self.embedder.name,),
+                """.format(visible),
+                visible_parameters + [self.embedder.name],
             ).fetchall()
         if not rows:
             return
