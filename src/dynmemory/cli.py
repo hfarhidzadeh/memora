@@ -228,6 +228,7 @@ def _run(args: argparse.Namespace) -> int:
                 {
                     "score": result.score,
                     "matched_by": result.matched_by,
+                    "claim_status": result.claim_status,
                     "links": [asdict(link) for link in result.links],
                     "memory": _memory_json(result.memory),
                 }

@@ -175,18 +175,19 @@ Python only; the command line has no options for it yet.
 ```python
 from dynmemory import MemoryStore
 
-store = MemoryStore("./shared.sqlite3", require_viewers=True)
+store = MemoryStore("./shared.sqlite3", require_viewers=True, require_writer=True)
 store.join_channel("design", "alice")
 store.join_channel("design", "bob")
 store.join_channel("board", "dana")
 
-store.add_memory("The launch is on Friday.", "fact", channel="design", speaker="alice")
-store.add_memory("The launch may be cancelled.", "fact", channel="board", speaker="dana")
+store.for_writer("alice").add_memory("The launch is on Friday.", "fact", channel="design")
+store.for_writer("dana").add_memory("The launch may be cancelled.", "fact", channel="board")
 
 bob = store.for_viewers("bob")
 bob.search("launch")                          # the design memory only
 store.for_viewers(["bob", "dana"]).search("launch")  # nothing: no shared channel
 store.search("launch")                        # raises: viewers are required
+store.add_memory("x", "fact")                  # raises: bound writer required
 ```
 
 - **Who sees what.** `viewers` names the people who will see the answer. A
@@ -199,6 +200,12 @@ store.search("launch")                        # raises: viewers are required
   methods raise if the audience is omitted. The setting belongs to the store
   instance, not the database file. The CLI opens an unguarded store and is an
   administrative tool for someone who can access the SQLite file.
+- **Guard member writes.** `for_writer(member_id)` binds the `speaker` to a
+  trusted identity and checks current channel membership inside the write
+  transaction. `require_writer=True` rejects direct `add_memory` calls on that
+  store instance. Give the bound writer to user-facing code; keep the store
+  itself with trusted administrative code. Authentication and protecting the
+  SQLite file remain the application's responsibility.
 - **Membership is checked when reading.** Someone who joins a channel can read
   everything already in it. Someone who leaves (`leave_channel`) loses it at
   the next read, including what they said themselves.
@@ -210,17 +217,44 @@ store.search("launch")                        # raises: viewers are required
 - **Keys belong to a channel.** The same key in two channels names two
   separate memories, and a memory can only supersede one in its own channel.
   A write in one channel therefore never replaces a memory in another.
+- **Speaker claims remain attributed.** A keyed channel memory needs a
+  `speaker`. That speaker can correct their earlier claim. A different
+  speaker's differing claim remains active with a `contradicts` link. Search
+  returns both with `claim_status="disputed"`. Text comparison ignores case
+  and surrounding whitespace; it does not detect semantic equivalence.
+- **Admin resolution.** A trusted caller can register a workspace admin with
+  `store.add_admin("dana")`. An admin's keyed channel write replaces
+  non-admin claims and closes their dispute. A later non-admin disagreement is
+  shown as `claim_status="overruled"` while the admin claim stays `"current"`.
+  Two admins' first differing claims remain disputed until one restates.
+  Admin authority is recorded on each claim when it is written, so appointing
+  someone later does not promote their earlier statements. Resolved claims
+  remain available through `history`.
+- **Personal facts.** Pass `fact_subject="carol"` with a channel and key for a
+  claim about Carol. Carol's own correction supersedes other reports, including
+  an admin's. An admin's report about Carol does not gain team-fact authority.
+  A key keeps one scope and personal subject throughout its history; choose
+  separate keys when two people have the same attribute.
+- **Delegation.** A trusted store caller can grant one team key in one channel:
+  `store.grant_delegation("design", "review", "alice", granted_by="dana")`.
+  The grantor must be a workspace admin and Alice a current channel member.
+  Alice's next write to that key can resolve ordinary disagreement, while an
+  admin still outranks it. `revoke_delegation(..., revoked_by="dana")` ends the
+  grant; leaving the channel also ends it. Claims retain the authority they
+  had when written. A former delegate cannot replace their own still-active
+  delegated claim with an ordinary write. Grant and revocation events remain
+  in the database.
 
 Limits:
 
 - A store opened without `require_viewers=True` still permits unrestricted
   reads for single-user and administrative use. Applications must keep that
   store and the database file away from untrusted callers.
-- Writes are not checked: anyone who can call the store can add a memory to
-  any channel or change its members.
+- The store does not authenticate identities. `add_admin`, membership changes,
+  direct administrative writes, and the SQLite file require trusted code.
 - Access counts and pruning are shared by everyone in the store.
-- There are no admins, disputes or deletion cascades yet. The design they
-  belong to is in
+- A standalone dispute table and deletion cascades are not implemented. The
+  broader design is in
   [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
 
 Why leave hidden memories out before ranking instead of dropping them from the

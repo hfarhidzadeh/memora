@@ -16,7 +16,7 @@ from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
 
 from .embeddings import Embedder
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 
 class MemoryType(str, Enum):
@@ -74,6 +74,9 @@ class Memory:
     superseded_by: Optional[str]
     channel: Optional[str] = None
     speaker: Optional[str] = None
+    asserted_as_admin: bool = False
+    fact_subject: Optional[str] = None
+    asserted_as_delegate: bool = False
 
 
 @dataclass(frozen=True)
@@ -96,6 +99,10 @@ class SearchResult:
     similarity (0 below the embedder's ``min_similarity``), and ``coverage``
     the share of the query's inverse-document-frequency mass that the memory
     contains. Each is 0 when the memory did not match that way.
+
+    ``claim_status`` is ``current``, ``disputed``, ``agrees`` or ``overruled``
+    for active keyed channel claims. It uses exact text after trimming and
+    case folding, not semantic disagreement detection.
     """
 
     memory: Memory
@@ -105,6 +112,7 @@ class SearchResult:
     lexical_score: float = 0.0
     vector_score: float = 0.0
     coverage: float = 0.0
+    claim_status: str = "current"
 
 
 @dataclass(frozen=True)
@@ -162,6 +170,26 @@ class AudienceReader:
         )
 
 
+class ChannelWriter:
+    """Write channel claims as one identity supplied by trusted caller code."""
+
+    def __init__(self, store: MemoryStore, member_id: str) -> None:
+        self._store = store
+        self._member_id = store._name(member_id, "member_id")
+
+    def add_memory(
+        self, content: str, kind: Union[MemoryType, str], *,
+        channel: str, memory_key: Optional[str] = None,
+        fact_subject: Optional[str] = None, source: str = "conversation",
+        confidence: float = 0.8, importance: float = 0.5,
+    ) -> Memory:
+        return self._store._add_memory(
+            content, kind, channel=channel, speaker=self._member_id,
+            memory_key=memory_key, fact_subject=fact_subject, source=source,
+            confidence=confidence, importance=importance, check_membership=True,
+        )
+
+
 def retention_score(
     importance: float,
     confidence: float,
@@ -190,7 +218,8 @@ class MemoryStore:
     viewer currently belongs to. By default, reads without ``viewers`` use
     everything for single-user or administrative use. ``require_viewers=True``
     rejects those reads, and ``for_viewers`` binds a reader to one audience.
-    Writes are not checked against membership.
+    Use ``for_writer`` for member writes. ``require_writer=True`` prevents
+    direct writes through this administrative store instance.
     """
 
     _TOKEN_PATTERN = re.compile(r"\w+", re.UNICODE)
@@ -212,9 +241,11 @@ class MemoryStore:
         embedder: Optional[Embedder] = None,
         link_carryover: Union[LinkCarryover, str] = LinkCarryover.KEEP,
         require_viewers: bool = False,
+        require_writer: bool = False,
     ) -> None:
         self.embedder = embedder
         self.require_viewers = require_viewers
+        self.require_writer = require_writer
         try:
             self.link_carryover = LinkCarryover(link_carryover)
         except ValueError as error:
@@ -293,7 +324,12 @@ class MemoryStore:
                 archived_at TEXT,
                 superseded_by TEXT REFERENCES memories(id),
                 channel TEXT,
-                speaker TEXT
+                speaker TEXT,
+                asserted_as_admin INTEGER NOT NULL DEFAULT 0
+                    CHECK (asserted_as_admin IN (0, 1)),
+                fact_subject TEXT,
+                asserted_as_delegate INTEGER NOT NULL DEFAULT 0
+                    CHECK (asserted_as_delegate IN (0, 1))
             )
             """,
             """
@@ -326,10 +362,27 @@ class MemoryStore:
                 left_at TEXT
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS admins (
+                member_id TEXT PRIMARY KEY CHECK (length(trim(member_id)) > 0)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS delegations (
+                channel TEXT NOT NULL,
+                memory_key TEXT NOT NULL,
+                member_id TEXT NOT NULL,
+                granted_by TEXT NOT NULL,
+                granted_at TEXT NOT NULL,
+                revoked_by TEXT,
+                revoked_at TEXT,
+                PRIMARY KEY (channel, memory_key, member_id, granted_at)
+            )
+            """,
         )
         indexes = (
-            # A key names one active memory per channel; memories without a
-            # channel share one namespace, as before channels existed.
+            # Channel keys have one active claim per speaker; memories without
+            # a channel share one namespace, as before channels existed.
             """
             CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_key
                 ON memories(memory_key)
@@ -338,9 +391,15 @@ class MemoryStore:
             """,
             """
             CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_channel_key
+                ON memories(channel, memory_key, speaker)
+                WHERE memory_key IS NOT NULL AND archived_at IS NULL
+                  AND channel IS NOT NULL AND speaker IS NOT NULL
+            """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS one_active_unattributed_channel_key
                 ON memories(channel, memory_key)
                 WHERE memory_key IS NOT NULL AND archived_at IS NULL
-                  AND channel IS NOT NULL
+                  AND channel IS NOT NULL AND speaker IS NULL
             """,
             """
             CREATE INDEX IF NOT EXISTS memories_active_kind
@@ -364,6 +423,11 @@ class MemoryStore:
                 ON channel_members(member_id)
                 WHERE left_at IS NULL
             """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS one_active_delegation
+                ON delegations(channel, memory_key, member_id)
+                WHERE revoked_at IS NULL
+            """,
         )
         with self._transaction() as connection:
             for statement in tables:
@@ -378,10 +442,22 @@ class MemoryStore:
                     connection.execute(
                         "ALTER TABLE memories ADD COLUMN {} TEXT".format(column)
                     )
+            if "asserted_as_admin" not in columns:
+                connection.execute(
+                    "ALTER TABLE memories ADD COLUMN asserted_as_admin INTEGER NOT NULL DEFAULT 0"
+                )
+            if "fact_subject" not in columns:
+                connection.execute("ALTER TABLE memories ADD COLUMN fact_subject TEXT")
+            if "asserted_as_delegate" not in columns:
+                connection.execute(
+                    "ALTER TABLE memories ADD COLUMN asserted_as_delegate INTEGER NOT NULL DEFAULT 0"
+                )
             if version < 2:
                 # Keys were unique across the whole store; the index is
                 # rebuilt below to cover only memories without a channel.
                 connection.execute("DROP INDEX IF EXISTS one_active_memory_per_key")
+            if version < 3:
+                connection.execute("DROP INDEX IF EXISTS one_active_memory_per_channel_key")
             for statement in indexes:
                 connection.execute(statement)
             if version < 1:
@@ -431,6 +507,9 @@ class MemoryStore:
             superseded_by=row["superseded_by"],
             channel=row["channel"],
             speaker=row["speaker"],
+            asserted_as_admin=bool(row["asserted_as_admin"]),
+            fact_subject=row["fact_subject"],
+            asserted_as_delegate=bool(row["asserted_as_delegate"]),
         )
 
     @staticmethod
@@ -469,6 +548,10 @@ class MemoryStore:
         if viewer_ids is None:
             raise ValueError("viewers must name at least one member")
         return AudienceReader(self, viewer_ids)
+
+    def for_writer(self, member_id: str) -> ChannelWriter:
+        """Bind writes to an authenticated member supplied by the caller."""
+        return ChannelWriter(self, member_id)
 
     def _read_viewers(
         self, viewers: Optional[Union[str, Iterable[str]]]
@@ -540,6 +623,11 @@ class MemoryStore:
                 raise ValueError(
                     "{} is not a member of {}".format(member_id, channel)
                 )
+            connection.execute(
+                """UPDATE delegations SET revoked_at = ?, revoked_by = ?
+                WHERE channel = ? AND member_id = ? AND revoked_at IS NULL""",
+                (self._now(), "channel_departure", channel, member_id),
+            )
 
     def members_of(self, channel: str) -> list[str]:
         """The current members of a channel."""
@@ -569,6 +657,87 @@ class MemoryStore:
                 )
             ]
 
+    def add_admin(self, member_id: str) -> None:
+        """Register a workspace-wide admin through the trusted store interface."""
+        member_id = self._name(member_id, "member_id")
+        with self._transaction() as connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO admins (member_id) VALUES (?)", (member_id,)
+            )
+
+    def is_admin(self, member_id: str) -> bool:
+        """Whether a member can resolve team-fact disagreements."""
+        member_id = self._name(member_id, "member_id")
+        with self._transaction(write=False) as connection:
+            return connection.execute(
+                "SELECT 1 FROM admins WHERE member_id = ?", (member_id,)
+            ).fetchone() is not None
+
+    def grant_delegation(
+        self, channel: str, memory_key: str, member_id: str, *, granted_by: str
+    ) -> None:
+        """Grant one team claim to a channel member; caller must be an admin."""
+        channel = self._name(channel, "channel")
+        memory_key = self._name(memory_key, "memory_key")
+        member_id = self._name(member_id, "member_id")
+        granted_by = self._name(granted_by, "granted_by")
+        with self._transaction() as connection:
+            if not connection.execute(
+                "SELECT 1 FROM admins WHERE member_id = ?", (granted_by,)
+            ).fetchone():
+                raise ValueError("only an admin may grant delegation")
+            if not connection.execute(
+                """SELECT 1 FROM channel_members WHERE channel = ?
+                AND member_id = ? AND left_at IS NULL""", (channel, member_id)
+            ).fetchone():
+                raise ValueError("delegate must be a current channel member")
+            if connection.execute(
+                """SELECT 1 FROM memories WHERE channel = ? AND memory_key = ?
+                AND fact_subject IS NOT NULL""", (channel, memory_key)
+            ).fetchone():
+                raise ValueError("personal facts cannot be delegated")
+            if not connection.execute(
+                """SELECT 1 FROM delegations WHERE channel = ? AND memory_key = ?
+                AND member_id = ? AND revoked_at IS NULL""",
+                (channel, memory_key, member_id),
+            ).fetchone():
+                connection.execute(
+                    """INSERT INTO delegations
+                    (channel, memory_key, member_id, granted_by, granted_at)
+                    VALUES (?, ?, ?, ?, ?)""",
+                    (channel, memory_key, member_id, granted_by, self._now()),
+                )
+
+    def revoke_delegation(
+        self, channel: str, memory_key: str, member_id: str, *, revoked_by: str
+    ) -> None:
+        """Revoke a team-fact grant; old claims keep their write-time role."""
+        channel = self._name(channel, "channel")
+        memory_key = self._name(memory_key, "memory_key")
+        member_id = self._name(member_id, "member_id")
+        revoked_by = self._name(revoked_by, "revoked_by")
+        with self._transaction() as connection:
+            if not connection.execute(
+                "SELECT 1 FROM admins WHERE member_id = ?", (revoked_by,)
+            ).fetchone():
+                raise ValueError("only an admin may revoke delegation")
+            cursor = connection.execute(
+                """UPDATE delegations SET revoked_at = ?, revoked_by = ?
+                WHERE channel = ? AND memory_key = ? AND member_id = ?
+                AND revoked_at IS NULL""",
+                (self._now(), revoked_by, channel, memory_key, member_id),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError("no active delegation for this claim")
+
+    @staticmethod
+    def _claim_rank(row: Union[sqlite3.Row, Mapping[str, object]]) -> int:
+        if row["fact_subject"] is not None:
+            return 2 if row["speaker"] == row["fact_subject"] else 0
+        if row["asserted_as_admin"]:
+            return 2
+        return 1 if row["asserted_as_delegate"] else 0
+
     def add_memory(
         self,
         content: str,
@@ -580,13 +749,30 @@ class MemoryStore:
         importance: float = 0.5,
         channel: Optional[str] = None,
         speaker: Optional[str] = None,
+        fact_subject: Optional[str] = None,
     ) -> Memory:
-        """Store a memory; writing a ``memory_key`` again replaces its active version.
+        if self.require_writer:
+            raise ValueError("this store requires a bound writer for user-facing writes")
+        return self._add_memory(
+            content, kind, memory_key=memory_key, source=source,
+            confidence=confidence, importance=importance, channel=channel,
+            speaker=speaker, fact_subject=fact_subject, check_membership=False,
+        )
+
+    def _add_memory(
+        self, content: str, kind: Union[MemoryType, str], *,
+        memory_key: Optional[str], source: str, confidence: float,
+        importance: float, channel: Optional[str], speaker: Optional[str],
+        fact_subject: Optional[str], check_membership: bool,
+    ) -> Memory:
+        """Store a memory; a keyed channel claim belongs to its speaker.
 
         ``channel`` is where the memory was said and ``speaker`` who said it.
-        A key belongs to its channel: the same key in two channels names two
-        separate memories, so a write in one channel never replaces a memory
-        in another.
+        In a channel, the same speaker corrects their own claim. A different
+        speaker's differing claim stays active and is linked as a contradiction.
+        A workspace admin resolves non-admin claims; two admins' first claims
+        can disagree until one restates. Unchannelled keys keep their original
+        single-user replacement behavior.
         """
         if not content or not content.strip():
             raise ValueError("content must not be empty")
@@ -598,6 +784,14 @@ class MemoryStore:
             channel = self._name(channel, "channel")
         if speaker is not None:
             speaker = self._name(speaker, "speaker")
+        if channel is not None and memory_key is not None and speaker is None:
+            raise ValueError("keyed channel memories require a speaker")
+        if fact_subject is not None:
+            fact_subject = self._name(fact_subject, "fact_subject")
+            if channel is None or memory_key is None:
+                raise ValueError("personal facts require a channel and memory_key")
+        if check_membership and channel is None:
+            raise ValueError("bound writers require a channel")
         self._validate_unit_interval(confidence, "confidence")
         self._validate_unit_interval(importance, "importance")
         try:
@@ -612,33 +806,101 @@ class MemoryStore:
         now = self._now()
         memory_id = uuid.uuid4().hex
         with self._transaction() as connection:
+            if check_membership and not connection.execute(
+                """SELECT 1 FROM channel_members WHERE channel = ?
+                AND member_id = ? AND left_at IS NULL""", (channel, speaker)
+            ).fetchone():
+                raise ValueError("writer is not a current channel member")
             predecessors = []
+            conflicts = []
+            asserted_as_admin = bool(
+                channel is not None and speaker is not None
+                and connection.execute(
+                    "SELECT 1 FROM admins WHERE member_id = ?", (speaker,)
+                ).fetchone() is not None
+            )
+            asserted_as_delegate = bool(
+                channel is not None and memory_key is not None
+                and fact_subject is None and speaker is not None
+                and connection.execute(
+                    """SELECT 1 FROM delegations WHERE channel = ? AND memory_key = ?
+                    AND member_id = ? AND revoked_at IS NULL""",
+                    (channel, memory_key, speaker),
+                ).fetchone() is not None
+            )
             if memory_key is not None:
-                # The active version is replaced, and so is a version that
-                # pruning archived, so the key's history stays connected.
-                predecessors = connection.execute(
+                heads = connection.execute(
                     """
-                    SELECT id FROM memories
+                    SELECT id, speaker, content, archived_at, asserted_as_admin,
+                           asserted_as_delegate, fact_subject
+                    FROM memories
                     WHERE memory_key = ? AND superseded_by IS NULL
                       AND channel IS ?
                     """,
                     (memory_key, channel),
                 ).fetchall()
-                connection.execute(
-                    """
-                    UPDATE memories SET archived_at = ?, updated_at = ?
-                    WHERE memory_key = ? AND archived_at IS NULL
-                      AND channel IS ?
-                    """,
-                    (now, now, memory_key, channel),
-                )
+                if channel is not None and connection.execute(
+                    """SELECT 1 FROM memories WHERE memory_key = ? AND channel = ?
+                    AND fact_subject IS NOT ? LIMIT 1""",
+                    (memory_key, channel, fact_subject),
+                ).fetchone():
+                    raise ValueError("claim scope or personal subject differs from key history")
+                if channel is None:
+                    predecessors = heads
+                else:
+                    incoming = {
+                        "speaker": speaker, "fact_subject": fact_subject,
+                        "asserted_as_admin": asserted_as_admin,
+                        "asserted_as_delegate": asserted_as_delegate,
+                    }
+                    rank = self._claim_rank(incoming)
+                    if any(
+                        head["speaker"] == speaker
+                        and head["archived_at"] is None
+                        and self._claim_rank(head) > rank
+                        for head in heads
+                    ):
+                        raise ValueError(
+                            "a lapsed authority cannot revise its earlier claim"
+                        )
+                    other_active = [head for head in heads
+                                    if head["speaker"] != speaker
+                                    and head["archived_at"] is None]
+                    other_max = max((self._claim_rank(head) for head in other_active), default=-1)
+                    restatement = any(
+                        head["speaker"] == speaker and head["archived_at"] is None
+                        and self._claim_rank(head) == rank for head in heads
+                    )
+                    resolve_all = rank > 0 and (
+                        rank > other_max or (rank == other_max and restatement)
+                    )
+                    predecessors = [
+                        head for head in heads
+                        if head["speaker"] == speaker or
+                        (resolve_all and self._claim_rank(head) <= rank)
+                    ]
+                    predecessor_ids = {head["id"] for head in predecessors}
+                    conflicts = [
+                        head for head in heads
+                        if head["id"] not in predecessor_ids
+                        and head["archived_at"] is None
+                        and head["content"].strip().casefold()
+                        != content.strip().casefold()
+                    ]
+                for previous in predecessors:
+                    if previous["archived_at"] is None:
+                        connection.execute(
+                            "UPDATE memories SET archived_at = ?, updated_at = ? WHERE id = ?",
+                            (now, now, previous["id"]),
+                        )
 
             connection.execute(
                 """
                 INSERT INTO memories (
                     id, kind, content, memory_key, source, confidence,
-                    importance, created_at, updated_at, channel, speaker
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    importance, created_at, updated_at, channel, speaker,
+                    asserted_as_admin, fact_subject, asserted_as_delegate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     memory_id,
@@ -652,6 +914,9 @@ class MemoryStore:
                     now,
                     channel,
                     speaker,
+                    int(asserted_as_admin),
+                    fact_subject,
+                    int(asserted_as_delegate),
                 ),
             )
             if self.embedder is not None:
@@ -659,6 +924,15 @@ class MemoryStore:
 
             for previous in predecessors:
                 self._record_supersession(connection, memory_id, previous["id"], now)
+            for other in conflicts:
+                connection.execute(
+                    """
+                    INSERT INTO relationships (source_id, target_id, relation, created_at)
+                    VALUES (?, ?, 'contradicts', ?)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    (memory_id, other["id"], now),
+                )
 
             row = connection.execute(
                 "SELECT * FROM memories WHERE id = ?", (memory_id,)
@@ -706,10 +980,10 @@ class MemoryStore:
     ) -> None:
         """Link two active memories; the link reads ``source relation target``.
 
-        ``supersedes`` also archives the target and records the source as its
-        replacement, exactly as rewriting a memory key does. A source without
-        a key takes over the target's key. Both must be in the same channel,
-        so every version of a fact has the same audience.
+        ``supersedes`` archives the target and records the source as its
+        replacement. A source without a key takes over the target's key.
+        Both must be in the same channel. Within a channel, the source must
+        have the same speaker or higher write-time authority for that claim.
         """
         try:
             relation_type = Relationship(relation)
@@ -724,7 +998,9 @@ class MemoryStore:
                 row["id"]: row
                 for row in connection.execute(
                     """
-                    SELECT id, memory_key, created_at, rowid, channel FROM memories
+                    SELECT id, memory_key, created_at, rowid, channel, speaker,
+                           asserted_as_admin, asserted_as_delegate, fact_subject
+                    FROM memories
                     WHERE id IN (?, ?) AND archived_at IS NULL
                     """,
                     (source_id, target_id),
@@ -738,6 +1014,24 @@ class MemoryStore:
                 if newer["channel"] != older["channel"]:
                     raise ValueError(
                         "a memory can only supersede one in the same channel"
+                    )
+                if newer["channel"] is not None and (
+                    newer["fact_subject"] != older["fact_subject"]
+                    or (newer["memory_key"] is not None
+                        and older["memory_key"] is not None
+                        and newer["memory_key"] != older["memory_key"])
+                ):
+                    raise ValueError("supersession requires the same claim scope and key")
+                if (
+                    newer["channel"] is not None
+                    and (
+                        self._claim_rank(newer) < self._claim_rank(older)
+                        or (newer["speaker"] != older["speaker"]
+                            and self._claim_rank(newer) == self._claim_rank(older))
+                    )
+                ):
+                    raise ValueError(
+                        "only a same-speaker claim with retained authority or a higher-authority holder can supersede a channel claim"
                     )
                 # Older databases store whole seconds; insertion order breaks ties.
                 if (newer["created_at"], newer["rowid"]) < (
@@ -859,8 +1153,9 @@ class MemoryStore:
                     SELECT id FROM memories
                     WHERE memory_key = ? AND archived_at IS NULL
                       AND channel IS ?
+                      AND (channel IS NULL OR speaker IS ?)
                     """,
-                    (row["memory_key"], row["channel"]),
+                    (row["memory_key"], row["channel"], row["speaker"]),
                 ).fetchone()
                 if holder is not None:
                     raise ValueError(
@@ -1063,6 +1358,7 @@ class MemoryStore:
                     ):
                         links_by_memory[memory_id].add(link)
 
+            claim_statuses = self._claim_statuses(connection, viewer_ids)
             results = []
             for memory_id in ranked_ids:
                 memory = active_memories[memory_id]
@@ -1101,9 +1397,51 @@ class MemoryStore:
                         lexical_score=lexical_scores.get(memory_id, 0.0),
                         vector_score=vector_scores.get(memory_id, 0.0),
                         coverage=coverage.get(memory_id, 0.0),
+                        claim_status=claim_statuses.get(memory_id, "current"),
                     )
                 )
             return results
+
+    def _claim_statuses(
+        self, connection: sqlite3.Connection,
+        viewers: Optional[tuple[str, ...]],
+    ) -> dict[str, str]:
+        """Classify active keyed claims using all visible kinds in each channel."""
+        visible, parameters = self._visible(viewers)
+        groups: dict[tuple[str, str], list[sqlite3.Row]] = {}
+        for row in connection.execute(
+            """
+            SELECT id, channel, memory_key, speaker, content,
+                   asserted_as_admin, asserted_as_delegate, fact_subject FROM memories
+            WHERE archived_at IS NULL AND channel IS NOT NULL
+              AND memory_key IS NOT NULL{}
+            """.format(visible),
+            parameters,
+        ):
+            groups.setdefault((row["channel"], row["memory_key"]), []).append(row)
+        statuses = {}
+        for claims in groups.values():
+            values = {claim["content"].strip().casefold() for claim in claims}
+            max_rank = max(self._claim_rank(claim) for claim in claims)
+            authority_values = {
+                claim["content"].strip().casefold() for claim in claims
+                if self._claim_rank(claim) == max_rank
+            }
+            for claim in claims:
+                value = claim["content"].strip().casefold()
+                if max_rank > 0 and len(authority_values) == 1:
+                    if self._claim_rank(claim) == max_rank:
+                        status = "current"
+                    elif value in authority_values:
+                        status = "agrees"
+                    else:
+                        status = "overruled"
+                elif len(values) == 1:
+                    status = "current"
+                else:
+                    status = "disputed"
+                statuses[claim["id"]] = status
+        return statuses
 
     def _lexical_scores(
         self, memories: Mapping[str, Memory], query_tokens: Sequence[str]
@@ -1257,7 +1595,9 @@ class MemoryStore:
         """
         memory_ids = list(memory_ids)
         if self.link_carryover is not LinkCarryover.TOPIC:
-            return self._links_touching(connection, memory_ids, viewers)
+            return self._without_resolved_contradictions(
+                connection, self._links_touching(connection, memory_ids, viewers)
+            )
         links = self._links_touching(
             connection,
             memory_ids
@@ -1276,10 +1616,57 @@ class MemoryStore:
             target_id = current.get(link.target_id, link.target_id)
             if source_id != target_id:
                 resolved.add(Link(source_id, target_id, link.relation))
-        return sorted(
-            resolved,
-            key=lambda link: (link.source_id, link.target_id, link.relation.value),
+        return self._without_resolved_contradictions(
+            connection,
+            sorted(
+                resolved,
+                key=lambda link: (link.source_id, link.target_id, link.relation.value),
+            ),
         )
+
+    def _without_resolved_contradictions(
+        self, connection: sqlite3.Connection, links: Sequence[Link]
+    ) -> list[Link]:
+        """A carried contradiction no longer applies when current claims agree."""
+        ends = {
+            end
+            for link in links
+            if link.relation is Relationship.CONTRADICTS
+            for end in (link.source_id, link.target_id)
+        }
+        if not ends:
+            return list(links)
+        active = {}
+        end_ids = sorted(ends)
+        for start in range(0, len(end_ids), self._ID_CHUNK):
+            chunk = end_ids[start:start + self._ID_CHUNK]
+            placeholders = ",".join("?" for _ in chunk)
+            active.update(
+                (row["id"], row)
+                for row in connection.execute(
+                    """
+                    SELECT id, channel, memory_key, content FROM memories
+                    WHERE archived_at IS NULL AND id IN ({})
+                    """.format(placeholders),
+                    chunk,
+                )
+            )
+        return [
+            link
+            for link in links
+            if not (
+                link.relation is Relationship.CONTRADICTS
+                and link.source_id in active
+                and link.target_id in active
+                and active[link.source_id]["channel"] is not None
+                and active[link.source_id]["channel"] == active[link.target_id]["channel"]
+                and active[link.source_id]["memory_key"] is not None
+                and active[link.source_id]["memory_key"]
+                == active[link.target_id]["memory_key"]
+                and active[link.source_id]["content"].strip().casefold()
+                == active[link.target_id]["content"].strip().casefold()
+            )
+        ]
 
     def _earlier_versions(
         self,

@@ -694,6 +694,33 @@ memories visible to the search audience; a hidden memory cannot trigger an
 embedder failure during someone else's search. The CLI remains a local
 administrative interface without audience filtering.
 
+**Speaker revision added, 2026-11-18.** A keyed channel memory now needs a
+speaker. The same speaker may correct their earlier claim; another speaker's
+different text stays active with a `contradicts` link. Search labels active
+claims `current`, `disputed`, `agrees` or `overruled`. A trusted store caller
+registers workspace admins; their write can resolve non-admin disagreement.
+Two admins' first conflicting writes remain disputed until one restates.
+Admin authority is fixed on each claim at write time. These are exact text
+comparisons, not semantic conflict detection. Write authentication and a
+standalone dispute table remain unbuilt.
+
+**Guarded writes and scoped ownership, 2026-11-18.** A caller that has already
+authenticated a member can pass only `for_writer(member_id)` to user-facing
+code. It binds the speaker and checks channel membership within the write
+transaction. `require_writer=True` rejects direct `add_memory` on that store
+instance. Personal claims explicitly carry `fact_subject`; their subject's
+own write outranks third-party and admin reports. A channel key cannot switch
+between team and personal scope or between personal subjects. Team delegates
+are granted one channel key by a workspace admin, with admin > delegate >
+ordinary precedence. Grants and revocations are timestamped in a database
+table; a channel departure revokes its grants. A claim's authority stays as
+asserted at write time. Classification of real-world text into a key, scope,
+and subject remains the caller's job. The store interface is a capability
+boundary for application code, not an authentication or process-isolation
+mechanism; the raw store and SQLite file need trusted ownership. Delegation
+events are recorded as database rows, not immutable source messages as the
+full proposal describes.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every
@@ -708,8 +735,9 @@ administrative interface without audience filtering.
   (a member of both channels does see the link). They are not yet covered by
   an experiment with many trials. Sixteen deliberate faults put into the
   store, one at a time, were each caught by these tests.
-- **Not built:** write-side checks, admins, disputes (rule 2), the deletion
-  cascade (rule 3) and who-knows-what. A read without `viewers` uses every
+- **Not built:** write authentication, a standalone dispute table, the deletion
+  cascade (rule 3) and who-knows-what.
+  A read without `viewers` uses every
   memory on an unguarded store; guarded stores reject it.
 
 How the earlier Memora findings fit:
@@ -722,12 +750,12 @@ How the earlier Memora findings fit:
   investing in graph structure first.
 - **The silence signals** would need to be computed per viewer set.
 
-Smallest schema change that supports rules 1 and 2 (the first two items are
-built, except the admin flag):
+Smallest schema change that supports rules 1 and 2 (speaker, channel, member
+and admin records plus keyed contradiction links are now built):
 
 - a `speaker` and `channel` column on `memories`;
 - a `channel_members(channel, member_id, joined_at, left_at)` table and an
-  admin flag;
+  admin table;
 - an `acknowledgements(memory_id, member_id, kind)` table;
 - a key rewrite by a different speaker records a `contradicts` link instead of
   a supersession, unless that speaker is an admin or the person a personal key

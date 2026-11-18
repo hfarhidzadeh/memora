@@ -36,11 +36,10 @@ built from seed s:
     to the script's own model, with a random relation from all five. A relate
     drawn while fewer than two memories are active becomes an add.
   - The model tracks which visible memories exist and are active, including
-    key rewrites within a channel, supersessions and the key hand-over (a
-    source without a key takes over the target's key), and predicts each
-    operation's outcome: a ``supersedes`` is refused across channels or when
-    the source is the older memory, and everything else is accepted. A refused
-    ``supersedes`` raises ValueError, which is caught and recorded.
+    same-speaker key rewrites within a channel, supersessions and the key
+    hand-over (a source without a key takes over the target's key). It predicts
+    refusal for cross-channel, cross-speaker, different-key or older-source
+    ``supersedes``. A refusal raises ValueError and is recorded.
 - Hidden script ("s-hidden-A" for A, "s-hidden-B" for B), 10 to 60 operations:
   - add (55%): a random hidden channel, or no channel with probability 0.1,
     otherwise as above with the same key names; the speaker is a random member
@@ -277,6 +276,8 @@ GROUPS = (
 REFUSALS = (
     ("exist and be active", "refused: not active"),
     ("same channel", "refused: other channel"),
+    ("higher-authority holder", "refused: other speaker"),
+    ("same claim scope and key", "refused: other key"),
     ("older one", "refused: older"),
 )
 DETAILS_KEPT = 10
@@ -314,13 +315,15 @@ class Versions:
     def add(self, operation: dict) -> None:
         channel, key = operation["channel"], operation["key"]
         if key is not None:
-            previous = self.holders.get((channel, key))
+            slot = (channel, key, operation["speaker"] if channel is not None else None)
+            previous = self.holders.get(slot)
             if previous is not None:
                 self.memories[previous]["active"] = False
-            self.holders[(channel, key)] = operation["label"]
+            self.holders[slot] = operation["label"]
         self.memories[operation["label"]] = {
             "channel": channel,
             "key": key,
+            "speaker": operation["speaker"],
             "active": True,
             "order": len(self.memories),
         }
@@ -334,15 +337,23 @@ class Versions:
             return "ok"
         if newer["channel"] != older["channel"]:
             return "refused: other channel"
+        if newer["channel"] is not None and newer["key"] is not None and (
+            older["key"] is not None and newer["key"] != older["key"]
+        ):
+            return "refused: other key"
+        if newer["channel"] is not None and newer["speaker"] != older["speaker"]:
+            return "refused: other speaker"
         if newer["order"] < older["order"]:
             return "refused: older"
         older["active"] = False
         if older["key"] is not None:
             if newer["key"] is None:
                 newer["key"] = older["key"]
-                self.holders[(older["channel"], older["key"])] = source
+                slot = (older["channel"], older["key"], older["speaker"] if older["channel"] is not None else None)
+                self.holders[slot] = source
             else:
-                del self.holders[(older["channel"], older["key"])]
+                slot = (older["channel"], older["key"], older["speaker"] if older["channel"] is not None else None)
+                self.holders.pop(slot, None)
         return "ok"
 
 

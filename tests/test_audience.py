@@ -544,6 +544,277 @@ class LinkTests(AudienceCase):
                 self.assertEqual(call.args[-1], ("alice", "erin"), name)
 
 
+class DisputeTests(AudienceCase):
+    def setUp(self):
+        super().setUp()
+        for member in ("alice", "bob", "dana", "erin"):
+            self.store.join_channel("design", member)
+
+    def test_different_speakers_keep_both_claims_and_mark_a_dispute(self):
+        alice = self.say("Review is Thursday.", "design", memory_key="review")
+        bob = self.say("Review is Friday.", "design", speaker="bob", memory_key="review")
+
+        self.assertIsNone(self.store.get_memory(alice.id).archived_at)
+        self.assertIsNone(self.store.get_memory(bob.id).archived_at)
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual(set(results), {alice.id, bob.id})
+        self.assertEqual({r.claim_status for r in results.values()}, {"disputed"})
+        link = Link(bob.id, alice.id, Relationship.CONTRADICTS)
+        self.assertIn(link, results[alice.id].links)
+        self.assertIn(link, results[bob.id].links)
+
+    def test_dispute_status_survives_kind_filter(self):
+        alice = self.say("Review is Thursday.", "design", memory_key="review")
+        bob = self.say(
+            "Review is Friday.", "design", speaker="bob",
+            memory_key="review", kind=MemoryType.CORRECTION,
+        )
+        (result,) = self.store.search("review", viewers="alice", kind="fact")
+        self.assertEqual(result.memory.id, alice.id)
+        self.assertEqual(result.claim_status, "disputed")
+        self.assertIn(Link(bob.id, alice.id, Relationship.CONTRADICTS), result.links)
+
+    def test_matching_text_from_another_speaker_is_agreement(self):
+        alice = self.say("Review is Thursday.", "design", memory_key="review")
+        bob = self.say(" review is thursday. ", "design", speaker="bob", memory_key="review")
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual(set(results), {alice.id, bob.id})
+        self.assertEqual({r.claim_status for r in results.values()}, {"current"})
+        self.assertEqual(results[alice.id].links, ())
+        self.assertEqual(results[bob.id].links, ())
+
+    def test_same_speaker_corrects_own_claim_without_erasing_another(self):
+        old = self.say("Review is Thursday.", "design", memory_key="review")
+        bob = self.say("Review is Friday.", "design", speaker="bob", memory_key="review")
+        new = self.say("Review is Tuesday.", "design", memory_key="review")
+
+        self.assertEqual(self.store.get_memory(old.id).superseded_by, new.id)
+        self.assertIsNotNone(self.store.get_memory(old.id).archived_at)
+        self.assertIsNone(self.store.get_memory(bob.id).archived_at)
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual(set(results), {new.id, bob.id})
+        self.assertEqual({r.claim_status for r in results.values()}, {"disputed"})
+        self.assertEqual([m.id for m in self.store.history(new.id)], [new.id, old.id])
+
+    def test_correction_to_agreement_clears_carried_contradictions(self):
+        for policy in LinkCarryover:
+            with self.subTest(policy=policy):
+                store = self.new_store(link_carryover=policy)
+                store.join_channel("design", "alice")
+                self.say("Review is Thursday.", "design", store=store, memory_key="review")
+                bob = self.say(
+                    "Review is Friday.", "design", speaker="bob",
+                    store=store, memory_key="review",
+                )
+                corrected = self.say(
+                    "Review is Friday.", "design", store=store, memory_key="review"
+                )
+                results = {r.memory.id: r for r in store.search("review", viewers="alice")}
+                self.assertEqual(set(results), {bob.id, corrected.id})
+                self.assertEqual({r.claim_status for r in results.values()}, {"current"})
+                self.assertFalse(any(
+                    link.relation is Relationship.CONTRADICTS
+                    for result in results.values() for link in result.links
+                ))
+
+    def test_admin_resolves_dispute_and_later_nonadmin_does_not_replace_it(self):
+        alice = self.say("Review is Thursday.", "design", memory_key="review")
+        bob = self.say("Review is Friday.", "design", speaker="bob", memory_key="review")
+        self.store.add_admin("dana")
+        self.assertTrue(self.store.is_admin("dana"))
+        dana = self.say("Review is Thursday.", "design", speaker="dana", memory_key="review")
+
+        for prior in (alice, bob):
+            self.assertEqual(self.store.get_memory(prior.id).superseded_by, dana.id)
+        self.assertEqual(
+            [r.memory.id for r in self.store.search("review", viewers="alice")],
+            [dana.id],
+        )
+        self.assertEqual(
+            {m.id for m in self.store.history(dana.id)}, {alice.id, bob.id, dana.id}
+        )
+
+        later = self.say("Review is Monday.", "design", speaker="bob", memory_key="review")
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual(set(results), {dana.id, later.id})
+        self.assertEqual(results[dana.id].claim_status, "current")
+        self.assertEqual(results[later.id].claim_status, "overruled")
+        self.assertIsNone(self.store.get_memory(dana.id).archived_at)
+
+        agreeing = self.say(
+            "Review is Thursday.", "design", speaker="erin", memory_key="review"
+        )
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual(results[agreeing.id].claim_status, "agrees")
+        self.assertEqual(results[dana.id].claim_status, "current")
+
+    def test_admin_role_does_not_retroactively_promote_an_old_claim(self):
+        alice = self.say("Review is Thursday.", "design", memory_key="review")
+        bob = self.say("Review is Friday.", "design", speaker="bob", memory_key="review")
+        self.store.add_admin("alice")
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual({r.claim_status for r in results.values()}, {"disputed"})
+        self.assertFalse(self.store.get_memory(alice.id).asserted_as_admin)
+
+        resolved = self.say("Review is Thursday.", "design", memory_key="review")
+        self.assertTrue(resolved.asserted_as_admin)
+        self.assertEqual(self.store.get_memory(bob.id).superseded_by, resolved.id)
+        self.assertEqual(
+            [r.memory.id for r in self.store.search("review", viewers="alice")],
+            [resolved.id],
+        )
+
+    def test_two_admins_disagree_until_one_restates(self):
+        self.store.add_admin("dana")
+        self.store.add_admin("erin")
+        dana = self.say("Review is Thursday.", "design", speaker="dana", memory_key="review")
+        erin = self.say("Review is Friday.", "design", speaker="erin", memory_key="review")
+        results = {r.memory.id: r for r in self.store.search("review", viewers="alice")}
+        self.assertEqual({r.claim_status for r in results.values()}, {"disputed"})
+        self.assertEqual(set(results), {dana.id, erin.id})
+
+        restated = self.say("Review is Thursday.", "design", speaker="dana", memory_key="review")
+        self.assertEqual(self.store.get_memory(erin.id).superseded_by, restated.id)
+        self.assertEqual(self.store.get_memory(dana.id).superseded_by, restated.id)
+        self.assertEqual(
+            [r.memory.id for r in self.store.search("review", viewers="alice")],
+            [restated.id],
+        )
+
+    def test_direct_supersession_cannot_bypass_speaker_rule(self):
+        alice = self.say("Review is Thursday.", "design")
+        bob = self.say("Review is Friday.", "design", speaker="bob")
+        with self.assertRaisesRegex(ValueError, "higher-authority holder"):
+            self.store.relate(bob.id, alice.id, Relationship.SUPERSEDES)
+        self.store.add_admin("bob")
+        with self.assertRaisesRegex(ValueError, "higher-authority holder"):
+            self.store.relate(bob.id, alice.id, Relationship.SUPERSEDES)
+        admin_bob = self.say("Review is Monday.", "design", speaker="bob")
+        self.store.relate(admin_bob.id, alice.id, Relationship.SUPERSEDES)
+        self.assertEqual(self.store.get_memory(alice.id).superseded_by, admin_bob.id)
+
+    def test_keyed_channel_claim_requires_speaker(self):
+        with self.assertRaisesRegex(ValueError, "require a speaker"):
+            self.store.add_memory("Review is Thursday.", "fact", channel="design", memory_key="review")
+
+
+class GuardedRevisionTests(AudienceCase):
+    def setUp(self):
+        super().setUp()
+        for member in ("alice", "bob", "carol", "dana"):
+            self.store.join_channel("design", member)
+        self.store.add_admin("dana")
+
+    def claim(self, speaker, content, key="review", subject=None, channel="design"):
+        return self.store.for_writer(speaker).add_memory(
+            content, "fact", channel=channel, memory_key=key, fact_subject=subject
+        )
+
+    def statuses(self, query="review"):
+        return {r.memory.id: r.claim_status for r in self.store.search(query, viewers="alice")}
+
+    def test_bound_writer_uses_its_identity_and_current_membership(self):
+        guarded = self.new_store(require_writer=True)
+        guarded.join_channel("design", "alice")
+        with self.assertRaisesRegex(ValueError, "bound writer"):
+            guarded.add_memory("Review is Monday", "fact", channel="design", speaker="alice")
+        writer = guarded.for_writer("alice")
+        claim = writer.add_memory("Review is Monday", "fact", channel="design", memory_key="review")
+        self.assertEqual(claim.speaker, "alice")
+        self.assertFalse(hasattr(writer, "add_admin"))
+        self.assertFalse(hasattr(writer, "relate"))
+        with self.assertRaises(TypeError):
+            writer.add_memory("x", "fact", channel="design", speaker="bob")
+        with self.assertRaisesRegex(ValueError, "current channel member"):
+            writer.add_memory("x", "fact", channel="board")
+        guarded.leave_channel("design", "alice")
+        with self.assertRaisesRegex(ValueError, "current channel member"):
+            writer.add_memory("Review is Tuesday", "fact", channel="design", memory_key="review")
+        self.assertEqual(guarded.get_memory(claim.id).content, "Review is Monday")
+
+    def test_personal_owner_resolves_reports_even_against_admin(self):
+        bob = self.claim("bob", "Carol prefers tea", "drink", "carol")
+        dana = self.claim("dana", "Carol prefers coffee", "drink", "carol")
+        self.assertEqual(set(self.statuses("Carol").values()), {"disputed"})
+        carol = self.claim("carol", "Carol prefers tea", "drink", "carol")
+        self.assertEqual(self.store.get_memory(bob.id).superseded_by, carol.id)
+        self.assertEqual(self.store.get_memory(dana.id).superseded_by, carol.id)
+        later = self.claim("dana", "Carol prefers coffee", "drink", "carol")
+        self.assertEqual(self.statuses("Carol"), {carol.id: "current", later.id: "overruled"})
+        self.assertEqual(carol.fact_subject, "carol")
+
+    def test_personal_subject_and_team_scope_cannot_change_for_a_key(self):
+        personal = self.claim("bob", "Carol prefers tea", "drink", "carol")
+        with self.assertRaisesRegex(ValueError, "scope or personal subject"):
+            self.claim("dana", "Team prefers tea", "drink")
+        with self.assertRaisesRegex(ValueError, "scope or personal subject"):
+            self.claim("alice", "Bob prefers tea", "drink", "bob")
+        with self.assertRaisesRegex(ValueError, "personal facts cannot"):
+            self.store.grant_delegation("design", "drink", "bob", granted_by="dana")
+        unscoped = self.claim("carol", "Carol now prefers water", "other")
+        with self.assertRaisesRegex(ValueError, "same claim scope"):
+            self.store.relate(unscoped.id, personal.id, Relationship.SUPERSEDES)
+
+    def test_delegate_controls_only_granted_team_fact_and_admin_outranks(self):
+        bob = self.claim("bob", "Review is Friday")
+        with self.assertRaisesRegex(ValueError, "only an admin"):
+            self.store.grant_delegation("design", "review", "alice", granted_by="bob")
+        self.store.grant_delegation("design", "review", "alice", granted_by="dana")
+        self.store.grant_delegation("design", "review", "alice", granted_by="dana")
+        alice = self.claim("alice", "Review is Thursday")
+        self.assertTrue(alice.asserted_as_delegate)
+        self.assertEqual(self.store.get_memory(bob.id).superseded_by, alice.id)
+        later = self.claim("bob", "Review is Tuesday")
+        self.assertEqual(self.statuses(), {alice.id: "current", later.id: "overruled"})
+        dana = self.claim("dana", "Review is Monday")
+        self.assertEqual(self.store.get_memory(alice.id).superseded_by, dana.id)
+        other = self.claim("alice", "Budget is high", "budget")
+        self.assertFalse(other.asserted_as_delegate)
+
+    def test_equal_delegates_dispute_until_one_restates(self):
+        for member in ("alice", "bob"):
+            self.store.grant_delegation("design", "review", member, granted_by="dana")
+        alice = self.claim("alice", "Review is Thursday")
+        bob = self.claim("bob", "Review is Friday")
+        self.assertEqual(self.statuses(), {alice.id: "disputed", bob.id: "disputed"})
+        resolved = self.claim("alice", "Review is Thursday")
+        self.assertEqual(self.store.get_memory(bob.id).superseded_by, resolved.id)
+        self.assertEqual(self.statuses(), {resolved.id: "current"})
+
+    def test_pruned_claim_can_be_restored_beside_another_speakers_claim(self):
+        alice = self.claim("alice", "Review is Thursday")
+        self.store._set_activity(alice.id, created_at="2020-01-01T00:00:00+00:00")
+        self.assertEqual(len(self.store.prune(dry_run=False)), 1)
+        bob = self.claim("bob", "Review is Friday")
+        self.store.restore(alice.id)
+        self.assertEqual(self.statuses(), {alice.id: "disputed", bob.id: "disputed"})
+
+    def test_revocation_and_departure_end_future_delegate_authority(self):
+        self.store.grant_delegation("design", "review", "alice", granted_by="dana")
+        earlier = self.claim("alice", "Review is Thursday")
+        with self.assertRaisesRegex(ValueError, "only an admin"):
+            self.store.revoke_delegation("design", "review", "alice", revoked_by="bob")
+        self.store.revoke_delegation("design", "review", "alice", revoked_by="dana")
+        self.assertTrue(earlier.asserted_as_delegate)
+        with self.assertRaisesRegex(ValueError, "lapsed authority"):
+            self.claim("alice", "Review is Friday")
+        ordinary = self.store.for_writer("alice").add_memory(
+            "Date update is Friday", "fact", channel="design"
+        )
+        with self.assertRaisesRegex(ValueError, "retained authority"):
+            self.store.relate(ordinary.id, earlier.id, Relationship.SUPERSEDES)
+        later = self.claim("bob", "Review is Friday")
+        self.assertEqual(self.statuses(), {earlier.id: "current", later.id: "overruled"})
+        self.store.grant_delegation("design", "review", "alice", granted_by="dana")
+        self.store.leave_channel("design", "alice")
+        self.store.join_channel("design", "alice")
+        with self.assertRaisesRegex(ValueError, "lapsed authority"):
+            self.claim("alice", "Review is Monday")
+        with self.store._transaction(write=False) as connection:
+            events = connection.execute("SELECT COUNT(*) FROM delegations").fetchone()[0]
+        self.assertEqual(events, 2)
+
+
 class AudienceReaderTests(AudienceCase):
     def test_reader_binds_all_read_paths_and_checks_membership_on_each_call(self):
         self.store.join_channel("design", "alice")
@@ -627,6 +898,34 @@ class AudienceReaderTests(AudienceCase):
 
 
 class UpgradeTests(AudienceCase):
+    def test_version_2_channel_key_index_is_rebuilt_for_speakers(self):
+        path = Path(self.temp_dir.name) / "v2.sqlite3"
+        store = MemoryStore(path)
+        store.add_memory(
+            "Review is Thursday.", "fact", channel="design",
+            speaker="alice", memory_key="review",
+        )
+        with store._transaction() as connection:
+            connection.execute("DROP INDEX one_active_memory_per_channel_key")
+            connection.execute(
+                """
+                CREATE UNIQUE INDEX one_active_memory_per_channel_key
+                ON memories(channel, memory_key)
+                WHERE memory_key IS NOT NULL AND archived_at IS NULL
+                  AND channel IS NOT NULL
+                """
+            )
+            connection.execute("PRAGMA user_version = 2")
+
+        reopened = MemoryStore(path)
+        reopened.add_memory(
+            "Review is Friday.", "fact", channel="design",
+            speaker="bob", memory_key="review",
+        )
+        with reopened._transaction(write=False) as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
+        self.assertEqual(len(reopened.list_memories()), 2)
+
     def test_a_version_0_2_database_is_upgraded_in_place(self):
         path = Path(self.temp_dir.name) / "v0.2.sqlite3"
         with closing(sqlite3.connect(path)) as connection:
@@ -643,7 +942,7 @@ class UpgradeTests(AudienceCase):
         MemoryStore(path)  # opening again changes nothing
 
         with store._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
         old = store.get_memory("old")
         self.assertEqual((old.channel, old.speaker), (None, None))
         self.assertEqual([r.memory.id for r in store.search("launch")], ["old"])
@@ -661,7 +960,9 @@ class UpgradeTests(AudienceCase):
                 )
         # ...and the same key can now be used inside a channel.
         store.join_channel("design", "alice")
-        store.add_memory("Design launch.", "fact", memory_key="launch", channel="design")
+        store.add_memory(
+            "Design launch.", "fact", memory_key="launch", channel="design", speaker="alice"
+        )
         self.assertEqual(
             [r.memory.content for r in store.search("launch", viewers="alice")],
             ["Design launch."],

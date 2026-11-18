@@ -3,6 +3,7 @@
 from .embeddings import Embedder, NGramHashEmbedder, SentenceTransformerEmbedder
 from .store import (
     AudienceReader,
+    ChannelWriter,
     Link,
     LinkCarryover,
     Memory,
@@ -16,6 +17,7 @@ from .store import (
 
 __all__ = [
     "AudienceReader",
+    "ChannelWriter",
     "Embedder",
     "Link",
     "LinkCarryover",
