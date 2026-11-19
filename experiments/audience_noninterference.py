@@ -1,14 +1,27 @@
 """Noninterference of reads with viewers: does anything hidden change what viewers read?
 
 Question (E2; every path of section 8 of docs/multi_user_memory_review.md at
-once, including keys). Two databases, A and B, agree on everything the viewers
-may see and differ only in what they may not see: hidden memories, hidden keys
-and versions, links touching a hidden memory, and other people's memberships.
-Do all reads with ``viewers`` (``search``, ``get_memory``, ``history`` and
-``list_memories``) return identical results on A and B (noninterference)? Do
-they also equal the reads, without ``viewers``, of a database R that never held
-the hidden part (exactness)? Filtering after ranking is run as a positive
-control, and its differences between A and B are attributed to fields.
+once, including keys, source lineage and retraction). Two databases, A and B,
+agree on everything the viewers may see and differ only in what they may not
+see: hidden memories (including memories in a channel the viewers see but
+drawn from a source they cannot see), hidden keys and versions, links touching
+a hidden memory, retractions of hidden sources, and other people's
+memberships. Do all reads with ``viewers`` (``search``, ``get_memory``,
+``history`` and ``list_memories``) return identical results on A and B
+(noninterference)? Do they also equal the reads, without ``viewers``, of a
+database R that never held the hidden part (exactness)? After the viewers'
+own retractions, do they equal the reads of a database N in which the
+retracted memories were never written (retraction)? Filtering after ranking is
+run as a positive control, and its differences between A and B are attributed
+to fields.
+
+Version 2, 2026-11-18. Version 1 had no source messages, admins or
+retractions. It was never run for results; a 60-trial smoke check of it is not
+reported. Version 2 adds them after a review found two faults that version 1
+could not reach: a claim drawn from a narrower source replaced claims that
+everyone could see, and retracting a replacing claim left its key with no
+value. The operations version 1 drew are unchanged; the new ones come from
+their own random streams.
 
 Data. Scripted and synthetic, no LLM, no real text. One trial is one pair,
 built from seed s:
@@ -17,17 +30,23 @@ built from seed s:
   Channels: both (ana, ben), ana-only (ana), ben-only (ben), others (cy, dee,
   eli). In A and B, each of cy, dee and eli also joins each of both, ana-only
   and ben-only with probability 0.5, drawn from that world's hidden stream, so
-  these memberships differ between A and B.
+  these memberships differ between A and B. cy is a workspace admin in every
+  world, registered before any operation, so cy's keyed claims carry admin
+  authority.
 - Viewers ("s-pair"): ["ana"] (visible channels both and ana-only) or
   ["ana", "ben"] (visible channel both), 50/50. With probability 0.5 the
   viewers join ``others`` before the first operation and leave it after the
   last, before any read, so they were members while every hidden memory there
-  was written. This churn is the same in A, A2, A+, B and R.
+  was written. This churn is the same in every world.
 - Store options, the same in every world of a pair ("s-pair"): link carry-over
   keep, copy or topic; no embedder or ``NGramHashEmbedder()``, 50/50.
 - Vocabulary: 60 pseudo-words w00-w59 (small, so hidden content moves the
   statistics). Kinds: all seven MemoryType values. Keys: k0-k5.
-- Visible script ("s-visible"), 20 to 60 operations:
+- Source messages. Each add with a channel, visible or hidden, records with
+  probability 0.8 a source message in its own channel, with the memory's text
+  and said by its speaker, and lists it as the memory's only source. The draw
+  comes from "s-visible-sources" or "s-hidden-<world>-extra".
+- Visible script ("s-visible"), 20 to 60 operations, then retractions:
   - add (70%): a random visible channel and kind, 3 to 10 words, a key with
     probability 0.3, and as speaker a random default member of the channel
     (ana or ben). Others' memberships belong to the hidden part, and the
@@ -35,47 +54,78 @@ built from seed s:
   - relate (30%): a random ordered pair of memories that are active according
     to the script's own model, with a random relation from all five. A relate
     drawn while fewer than two memories are active becomes an add.
-  - The model tracks which visible memories exist and are active, including
-    same-speaker key rewrites within a channel, supersessions and the key
-    hand-over (a source without a key takes over the target's key). It predicts
-    refusal for cross-channel, cross-speaker, different-key or older-source
-    ``supersedes``. A refusal raises ValueError and is recorded.
+  - Retractions ("s-visible-retractions"), 1 to 3 at the end: each retracts,
+    as its speaker, the source message of a visible memory that has one and is
+    not yet retracted. With probability 0.5 the memory is drawn from those
+    that replace another visible memory at that point (if any do), otherwise
+    from all of them.
 - Hidden script ("s-hidden-A" for A, "s-hidden-B" for B), 10 to 60 operations:
   - add (55%): a random hidden channel, or no channel with probability 0.1,
     otherwise as above with the same key names; the speaker is a random member
     of the channel as the hidden script tracks memberships (anyone if it has
-    none, or for no channel).
+    none, or for no channel). An add with a channel is, with probability 0.3
+    ("-extra" stream), narrow instead: it is placed in a channel the viewers
+    see, with its source message in a hidden channel, said by a random person
+    who belongs to both channels as the hidden script tracks memberships. If
+    nobody does, the add stays as drawn. A narrow memory is hidden from the
+    viewers by its source although they see its channel and keys; a viewer
+    can be its speaker when the churn put them in ``others``.
   - relate (35%): one end is a random hidden memory written so far, archived
     or not; the other is another hidden memory with probability 0.5 (when one
     exists) or a random visible label; the direction is random. The relation
     is random from all five for two hidden memories in the same channel and
     from the four others otherwise. 5% of relates are instead a deliberate
-    cross-channel ``supersedes`` (the other end is a visible label or a hidden
-    memory in another channel), which must raise ValueError; they are counted.
-    A relate to a memory archived at that moment raises ValueError, which is
-    caught and counted. A relate drawn before any hidden memory exists
-    becomes an add.
+    cross-channel ``supersedes`` (the other end is a hidden memory or visible
+    label in another channel), which must raise ValueError; they are counted.
+    A relate drawn before any hidden memory exists becomes an add.
   - membership (10%): a random other person joins a random channel, or leaves
     it if already a member.
+  - After each of these operations, from the "-extra" stream: with
+    probability 0.05, a retraction, by its speaker, of the source message of a
+    random hidden memory that has one and is not yet retracted; then, with
+    probability 0.1, a narrow ``supersedes`` from a random narrow memory to a
+    visible unkeyed memory of the same channel whose speaker is the same, or
+    any speaker if the narrow memory's speaker is the admin (none is added if
+    no such pair exists).
   - The hidden script is generated before interleaving, so a relate may name a
-    visible label that is not written yet, or is archived, when it runs. It is
-    then skipped and the skip counted (decided from the visible model's state
-    at that moment, never from the store).
+    visible label that is not written yet, or is not active, when it runs. It
+    is then skipped and the skip counted (decided from the visible model's
+    state at that moment, never from the store).
 - Interleaving ("s-interleave-A" or "-B"): the visible and hidden scripts are
   merged uniformly at random, each keeping its own order.
 - Reads ("s-reads"), the same in every world: 6 searches (1 to 3 distinct
   vocabulary words; kind None with probability 0.7, else a random kind; limit
   from {1, 3, 10, 1000}); ``get_memory`` and ``history`` for every label of
-  the visible script, including archived versions; and ``list_memories`` with
+  the visible script, including archived and retracted ones (a label a world
+  never wrote reads as missing); and ``list_memories`` with
   ``include_archived`` False and True, ``limit=1000``. Every read uses
   ``record_access=False`` where the method has it.
+
+Models. A model of one script tracks which memories exist and are active, as
+a correct store keeps them. Memories without a channel are replaced when
+written: a key rewrite or a ``supersedes`` archives the older memory, and a
+source without a key takes over the target's key. Channel memories are
+resolved as the store resolves them for a read without viewers since schema
+version 6: rule 2 replayed in write order over each channel key's claims that
+are not retracted (each claim replaces its speaker's earlier claims; the
+admin's replaces every claim if it outranks all other standing claims), and
+each accepted ``supersedes`` whose ends are not retracted. A retracted memory
+is inactive. The model predicts each relate's outcome in the store's order of
+checks: an end that is retracted or, without a channel, archived (since run 2,
+replacement of a channel memory does not count, as in the store); another
+channel; another key; lower or equal authority from another speaker; a keyed
+channel claim as target; an older source. The visible model replays the visible script alone; it gives the
+visible predictions and the skips. The administrative model replays every
+operation of a world in order; it gives the hidden predictions.
 
 Worlds. A and B: the visible script merged with that world's hidden script. A2:
 A rebuilt from the same seeds. A+: A followed by one extra visible add (its
 content is the first search's words, its kind that search's kind filter or
-``fact``, its channel a random visible channel from "s-extra", no key). R: the
-visible script alone, with ana's and ben's default memberships and the
-viewers' churn; nobody else's memberships.
+``fact``, its channel a random visible channel from "s-extra", no key, no
+source). R: the visible script alone, with ana's and ben's default memberships
+and the viewers' churn; nobody else's memberships. N: R's visible operations
+that succeeded in R, without the retractions, the adds of retracted memories
+and the relates that name one; memberships as in R.
 
 Labels. Visible memories are v<i> in the order the visible script adds them;
 hidden ones are hA<i> in A (and A2, A+) and hB<i> in B, so any mention of a
@@ -90,21 +140,23 @@ Arms.
   memories in the store), drop results the viewers cannot see, keep only
   links with both ends visible, then truncate to ``limit``.
   Both after arms decide visibility from the experiment's own record of each
-  memory's channel and of the memberships, never from the store's ``viewers``
-  code. A memory is visible if every viewer is currently in its channel; one
-  without a channel never is.
+  memory's channel and source channels and of the memberships, never from the
+  store's ``viewers`` code. A memory is visible if every viewer is currently
+  in its channel and in every source message's channel; one without a channel
+  never is.
 - built: every read with ``viewers=...``.
-- plain(R): the same reads without ``viewers`` on R. This is filtering before
-  ranking, emulated, and the reference for exactness.
+- plain(R), plain(N): the same reads without ``viewers`` on R or N. This is
+  filtering before ranking, emulated, and the reference for exactness and
+  retraction.
 The built arm is compared on all reads; the after arms on the 6 searches only.
 
 Canonical forms. A memory is (label, kind, content, memory_key, channel,
 speaker, confidence, importance, archived, superseded_by label or None). A
 search is, per result in order, (label, kind, content, memory_key, channel,
-speaker, score, matched_by, lexical_score, vector_score, coverage, links), with
-links sorted as (label(source), label(target), relation). Floats are compared
-exactly. Searches and histories are compared in the order returned; the two
-lists are compared sorted by label (see ``_reads`` for why).
+speaker, score, matched_by, lexical_score, vector_score, coverage, links,
+claim_status), with links sorted as (label(source), label(target), relation).
+Floats are compared exactly. Searches and histories are compared in the order
+returned; the two lists are compared sorted by label (see ``_reads`` for why).
 
 Controls and checks, per pair.
 - Determinism (negative control): A2 is A rebuilt from the same seeds. Every
@@ -121,13 +173,22 @@ Controls and checks, per pair.
   ``superseded_by``) a hidden label; ``get_memory(hidden_id, viewers=...)`` is
   None, and ``history(hidden_id, viewers=...)`` is empty, for every hidden
   memory in A and B.
+- Retraction: built(A) equals plain(N), and N ran every operation without a
+  refusal.
+
+Reported, not part of the verdict: visible operations whose outcome in the
+administrative model differs from the visible model's, and which of the two
+the store's outcome matched; pairs in which hidden activity left a visible
+memory replaced in the administrative model although the visible model keeps
+it active; visible retractions of a memory that replaced another; counts of
+narrow adds, narrow ``supersedes`` and hidden retractions.
 
 Attribution (descriptive). For after-naive and after-careful, the share of
 pairs in which, in at least one of the 6 searches, A and B differ in: the
 result set (labels shown); the order (relative order of the labels both show);
 the count; and, for a label both show, score, lexical_score, coverage,
-vector_score, matched_by or links. Also broken down by link carry-over and by
-embedder.
+vector_score, matched_by, links or claim_status. Also broken down by link
+carry-over and by embedder.
 
 Decision rule, fixed before running:
   1. Determinism: zero differences between A and A2 in every arm (and in every
@@ -138,10 +199,34 @@ Decision rule, fixed before running:
      operation went as predicted in A and in B.
   5. Exactness: built(A) equals plain(R) in every pair.
   6. Soundness holds in every pair.
+  7. Retraction holds in every pair.
   Verdicts: "inconclusive (control <n> failed)" if rule 1, 2 or 3 fails (all
   failing controls are named); otherwise "the built read path passes" if rules
-  4 to 6 hold; otherwise "the built read path fails rules <list> (first failing
+  4 to 7 hold; otherwise "the built read path fails rules <list> (first failing
   seed <s>)".
+
+Expected before run 1 (a prediction, not a rule): ``relate`` requires both
+ends to be active in the administrative view, which includes hidden memories.
+A hidden narrow write that replaces a visible memory in that view can then
+change whether a visible relate is accepted, which rule 4 counts as
+interference. Those operations are reported separately (above).
+
+Runs of version 2. Run 1 (2026-11-18) confirmed that prediction: rules 4, 5
+and 7 failed in 191, 70 and 70 of 500 pairs, every failure through such a
+``relate``. Its reports are kept in ``experiments/results/
+noninterference_v2_run1_superseded/``. The store was then changed so that
+``relate`` checks only its two ends (not archived, not retracted), and the
+model's relate check followed. Nothing else changed: the scripts, reads,
+visible predictions and decision rule are those of run 1. Expected before run 2
+(a prediction, not a rule): every rule holds in every pair, and no visible
+outcome depends on hidden memories.
+
+Validation of version 2 (its positive control), fixed before running: this
+script is run unchanged against the store of commit c7bb390 (schema version 5,
+claims resolved when written). Version 2 is judged able to detect the two
+faults if, on that store, rule 5 or rule 6 fails in at least 25% of pairs and
+rule 7 fails in at least 25% of pairs. The report names the store's schema
+version.
 
 Readings chosen where the specification left room, all before any run: the
 speakers of visible adds and the timing of the viewers' churn (above); others'
@@ -149,13 +234,25 @@ extra memberships drawn from the hidden stream; R keeps ana's and ben's default
 memberships whatever the viewer set; A+ is read with A's read plan, so its
 extra memory shows only through searches and lists; operation outcomes count
 under rule 1 as they do under rule 4; soundness also asks ``history`` of each
-hidden ID; outcomes are recorded with the store's reason for a refusal.
+hidden ID; outcomes are recorded with the store's reason for a refusal; N
+follows R's actual outcomes rather than the visible model's predictions, so
+that rule 7 isolates the retractions even on a store the model mispredicts.
 
 Default: 500 pairs (seeds 0 to 499).
 
 Run from the project root:
 
     python3 -I experiments/audience_noninterference.py
+
+Validation against the store before read-time resolution (the script imports
+the store from the ``src`` directory next to its own ``experiments``
+directory, so a copy of it runs against that commit's store):
+
+    mkdir -p /tmp/memora-c7bb390/experiments
+    git archive c7bb390 src | tar -x -C /tmp/memora-c7bb390
+    cp experiments/audience_noninterference.py /tmp/memora-c7bb390/experiments/
+    python3 -I /tmp/memora-c7bb390/experiments/audience_noninterference.py \
+        --output experiments/results/audience_noninterference_before_fix
 """
 
 from __future__ import annotations
@@ -175,6 +272,7 @@ from dynmemory import (  # noqa: E402
     NGramHashEmbedder,
     Relationship,
 )
+from dynmemory.store import SCHEMA_VERSION  # noqa: E402
 
 VOCABULARY = tuple("w{:02d}".format(index) for index in range(60))
 WORDS_PER_MEMORY = (3, 10)
@@ -194,6 +292,7 @@ MEMBERS = {
     "others": OTHERS,
 }
 CHANNELS = tuple(MEMBERS)
+ADMINS = ("cy",)
 OPEN_TO_OTHERS = ("both", "ana-only", "ben-only")
 OTHERS_JOIN = 0.5
 CHURN_CHANNEL = "others"
@@ -209,6 +308,12 @@ HIDDEN_RELATE = 0.35
 NO_CHANNEL = 0.1
 CROSS_SUPERSEDES = 0.05
 HIDDEN_PARTNER = 0.5
+SOURCED_SHARE = 0.8
+NARROW_SHARE = 0.3
+HIDDEN_RETRACT = 0.05
+NARROW_SUPERSEDE = 0.1
+VISIBLE_RETRACTIONS = (1, 3)
+RETRACT_REPLACER = 0.5
 SEARCHES = 6
 QUERY_WORDS = (1, 3)
 KIND_FILTER = 0.3
@@ -217,7 +322,7 @@ LIST_LIMIT = 1000
 BIG = 10000
 POWER_SHARE = 0.5
 DEFAULT_TRIALS = 500
-WORLDS = ("A", "A2", "B", "A+", "R")
+WORLDS = ("A", "A2", "B", "A+", "R", "N")
 AFTER_ARMS = ("after-naive", "after-careful")
 WORLD_ARMS = {
     "A": AFTER_ARMS + ("built",),
@@ -225,6 +330,7 @@ WORLD_ARMS = {
     "B": AFTER_ARMS + ("built",),
     "A+": ("built",),
     "R": ("plain",),
+    "N": ("plain",),
 }
 SEARCH_FIELDS = (
     "label",
@@ -239,6 +345,7 @@ SEARCH_FIELDS = (
     "vector_score",
     "coverage",
     "links",
+    "claim_status",
 )
 MEMORY_FIELDS = (
     "label",
@@ -252,7 +359,10 @@ MEMORY_FIELDS = (
     "archived",
     "superseded_by",
 )
-SHARED_FIELDS = ("score", "lexical_score", "coverage", "vector_score", "matched_by", "links")
+SHARED_FIELDS = (
+    "score", "lexical_score", "coverage", "vector_score", "matched_by", "links",
+    "claim_status",
+)
 ATTRIBUTION_FIELDS = ("result set", "order", "count") + SHARED_FIELDS
 CHECKS = (
     "determinism",
@@ -261,10 +371,11 @@ CHECKS = (
     "noninterference",
     "exactness",
     "soundness",
+    "retraction",
 )
 RULES = {number: name for number, name in enumerate(CHECKS, start=1)}
 CONTROL_RULES = (1, 2, 3)
-BUILT_RULES = (4, 5, 6)
+BUILT_RULES = (4, 5, 6, 7)
 GROUPS = (
     ("all", None, None),
     ("keep", "carryover", "keep"),
@@ -278,6 +389,7 @@ REFUSALS = (
     ("same channel", "refused: other channel"),
     ("higher-authority holder", "refused: other speaker"),
     ("same claim scope and key", "refused: other key"),
+    ("revised by writing a new claim", "refused: keyed claim"),
     ("older one", "refused: older"),
 )
 DETAILS_KEPT = 10
@@ -300,38 +412,116 @@ def hidden_channels(viewers) -> tuple:
 class Versions:
     """Which memories of one script exist and are active, as a correct store keeps them.
 
-    It follows key rewrites within a channel (memories without a channel share
-    one namespace), supersessions and the key hand-over, and predicts the
-    outcome of each relate in the store's own order of checks.
+    Memories without a channel are replaced when written: a key rewrite or a
+    ``supersedes`` archives the older memory, and a source without a key takes
+    over the target's key. Channel memories are resolved as a read without
+    viewers resolves them since schema version 6: rule 2 replayed in write
+    order over each channel key's claims that are not retracted, and each
+    accepted ``supersedes`` whose ends are not retracted. A retracted memory is
+    inactive. ``relate`` predicts an outcome in the store's own order of checks
+    and applies it.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, admins=ADMINS) -> None:
+        self.admins = frozenset(admins)
         self.memories = {}
         self.holders = {}
+        self.edges = []
+
+    def rank(self, label: str) -> int:
+        """Write-time authority of a memory: 2 for an admin's channel memory, else 0."""
+        memory = self.memories[label]
+        return 2 if memory["channel"] is not None and memory["speaker"] in self.admins else 0
+
+    def replaced(self) -> dict:
+        """Each replaced channel memory, mapped to the memory that replaced it."""
+        replaced = {}
+        groups = {}
+        for label, memory in self.memories.items():
+            if memory["channel"] is not None and memory["key"] is not None and not memory["stale"]:
+                groups.setdefault((memory["channel"], memory["key"]), []).append(label)
+        for labels in groups.values():
+            heads = []
+            for label in labels:
+                speaker, rank = self.memories[label]["speaker"], self.rank(label)
+                other_max = max(
+                    (
+                        self.rank(head)
+                        for head in heads
+                        if self.memories[head]["speaker"] != speaker
+                    ),
+                    default=-1,
+                )
+                restatement = any(
+                    self.memories[head]["speaker"] == speaker and self.rank(head) == rank
+                    for head in heads
+                )
+                resolve_all = rank > 0 and (
+                    rank > other_max or (rank == other_max and restatement)
+                )
+                standing = []
+                for head in heads:
+                    if self.memories[head]["speaker"] == speaker or (
+                        resolve_all and self.rank(head) <= rank
+                    ):
+                        replaced[head] = label
+                    else:
+                        standing.append(head)
+                heads = standing + [label]
+        for newer, older in self.edges:
+            if not (self.memories[newer]["stale"] or self.memories[older]["stale"]):
+                replaced[older] = newer
+        return replaced
+
+    def _active(self, label: str, replaced: dict) -> bool:
+        memory = self.memories[label]
+        if memory["stale"]:
+            return False
+        if memory["channel"] is None:
+            return not memory["archived"]
+        return label not in replaced
 
     def active(self) -> list:
-        return [label for label, memory in self.memories.items() if memory["active"]]
+        replaced = self.replaced()
+        return [label for label in self.memories if self._active(label, replaced)]
+
+    def is_active(self, label: str) -> bool:
+        return self._active(label, self.replaced())
+
+    def linkable(self, label: str) -> bool:
+        """Whether ``relate`` accepts this end: it exists, is not retracted and,
+        without a channel, is not archived. Replacement of a channel memory is
+        decided at read time and does not count (the store's rule since run 2)."""
+        memory = self.memories.get(label)
+        return memory is not None and not memory["stale"] and (
+            memory["channel"] is not None or not memory["archived"]
+        )
 
     def add(self, operation: dict) -> None:
         channel, key = operation["channel"], operation["key"]
-        if key is not None:
-            slot = (channel, key, operation["speaker"] if channel is not None else None)
-            previous = self.holders.get(slot)
+        if channel is None and key is not None:
+            previous = self.holders.get(key)
             if previous is not None:
-                self.memories[previous]["active"] = False
-            self.holders[slot] = operation["label"]
+                self.memories[previous]["archived"] = True
+            self.holders[key] = operation["label"]
         self.memories[operation["label"]] = {
             "channel": channel,
             "key": key,
             "speaker": operation["speaker"],
-            "active": True,
+            "source": operation.get("source"),
+            "narrow": operation.get("narrow", False),
+            "archived": False,
+            "stale": False,
             "order": len(self.memories),
         }
+
+    def retract(self, label: str) -> None:
+        self.memories[label]["stale"] = True
 
     def relate(self, source: str, target: str, relation: str) -> str:
         """Predict ``relate(source, target, relation)`` and apply it to the model."""
         newer, older = self.memories.get(source), self.memories.get(target)
-        if newer is None or older is None or not (newer["active"] and older["active"]):
+        if not (self.linkable(source) and self.linkable(target)):
             return "refused: not active"
         if relation != SUPERSEDES:
             return "ok"
@@ -341,19 +531,40 @@ class Versions:
             older["key"] is not None and newer["key"] != older["key"]
         ):
             return "refused: other key"
-        if newer["channel"] is not None and newer["speaker"] != older["speaker"]:
+        if newer["channel"] is not None and (
+            self.rank(source) < self.rank(target)
+            or (
+                newer["speaker"] != older["speaker"]
+                and self.rank(source) == self.rank(target)
+            )
+        ):
             return "refused: other speaker"
+        if newer["channel"] is not None and older["key"] is not None:
+            return "refused: keyed claim"
         if newer["order"] < older["order"]:
             return "refused: older"
-        older["active"] = False
+        if newer["channel"] is not None:
+            self.edges.append((source, target))
+            return "ok"
+        older["archived"] = True
         if older["key"] is not None:
             if newer["key"] is None:
                 newer["key"] = older["key"]
-                slot = (older["channel"], older["key"], older["speaker"] if older["channel"] is not None else None)
-                self.holders[slot] = source
+                self.holders[older["key"]] = source
             else:
-                slot = (older["channel"], older["key"], older["speaker"] if older["channel"] is not None else None)
-                self.holders.pop(slot, None)
+                self.holders.pop(older["key"], None)
+        return "ok"
+
+    def apply(self, operation: dict) -> str:
+        """Predict one operation's outcome and apply it to the model."""
+        if operation["op"] == "add":
+            self.add(operation)
+        elif operation["op"] == "relate":
+            return self.relate(
+                operation["source"], operation["target"], operation["relation"]
+            )
+        elif operation["op"] == "retract":
+            self.retract(operation["label"])
         return "ok"
 
 
@@ -377,6 +588,7 @@ def _add(rng: random.Random, label: str, channel, speakers) -> dict:
 def visible_script(seed: int, viewers) -> list:
     """The operations the viewers may see, each with its predicted outcome."""
     rng = random.Random("{}-visible".format(seed))
+    sourcing = random.Random("{}-visible-sources".format(seed))
     channels = visible_channels(viewers)
     model = Versions()
     script = []
@@ -385,6 +597,7 @@ def visible_script(seed: int, viewers) -> list:
         if rng.random() < VISIBLE_ADD or len(active) < 2:
             channel = rng.choice(channels)
             operation = _add(rng, "v{}".format(len(model.memories)), channel, MEMBERS[channel])
+            operation["source"] = channel if sourcing.random() < SOURCED_SHARE else None
             model.add(operation)
         else:
             source, target = rng.sample(active, 2)
@@ -397,26 +610,55 @@ def visible_script(seed: int, viewers) -> list:
                 "expect": model.relate(source, target, relation),
             }
         script.append(operation)
-    return script
+    return script + _visible_retractions(seed, model)
 
 
-def _hidden_relate(rng: random.Random, model: Versions, visible_labels: list) -> dict:
+def _visible_retractions(seed: int, model: Versions) -> list:
+    """The retractions that end the visible script, applied to its model."""
+    rng = random.Random("{}-visible-retractions".format(seed))
+    retractions = []
+    for _ in range(rng.randint(*VISIBLE_RETRACTIONS)):
+        sourced = [
+            label
+            for label, memory in model.memories.items()
+            if memory["source"] is not None and not memory["stale"]
+        ]
+        if not sourced:
+            break
+        replacers = [label for label in sourced if label in set(model.replaced().values())]
+        pool = replacers if replacers and rng.random() < RETRACT_REPLACER else sourced
+        label = rng.choice(pool)
+        retractions.append(
+            {
+                "op": "retract",
+                "label": label,
+                "speaker": model.memories[label]["speaker"],
+                "replacer": label in replacers,
+                "expect": "ok",
+            }
+        )
+        model.retract(label)
+    return retractions
+
+
+def _hidden_relate(rng: random.Random, model: Versions, visible: dict) -> dict:
+    """A relate with at least one hidden end; ``visible`` maps visible labels to fields."""
     hidden = list(model.memories)
     end = rng.choice(hidden)
     channel = model.memories[end]["channel"]
     deliberate = rng.random() < CROSS_SUPERSEDES
-    if deliberate:
-        elsewhere = [
-            label for label in hidden if model.memories[label]["channel"] != channel
-        ]
-        other = rng.choice(elsewhere + list(visible_labels))
+    elsewhere = [label for label in hidden if model.memories[label]["channel"] != channel]
+    elsewhere += [label for label, fields in visible.items() if fields["channel"] != channel]
+    if deliberate and elsewhere:
+        other = rng.choice(elsewhere)
         relation = SUPERSEDES
     else:
+        deliberate = False
         partners = [label for label in hidden if label != end]
         if partners and rng.random() < HIDDEN_PARTNER:
             other = rng.choice(partners)
         else:
-            other = rng.choice(visible_labels)
+            other = rng.choice(list(visible))
         same_channel = (
             other in model.memories and model.memories[other]["channel"] == channel
         )
@@ -429,24 +671,57 @@ def _hidden_relate(rng: random.Random, model: Versions, visible_labels: list) ->
         "relation": relation,
         "deliberate": deliberate,
     }
-    if other in model.memories:
-        operation["expect"] = model.relate(source, target, relation)
-    else:
+    if other not in model.memories:
         # The visible end's state is known only when the operation runs.
         operation["visible_end"] = other
-        if not model.memories[end]["active"]:
-            operation["expect"] = "refused: not active"
-        elif relation == SUPERSEDES:
-            operation["expect"] = "refused: other channel"
-        else:
-            operation["expect"] = "ok"
     return operation
 
 
+def _narrow_placement(rng: random.Random, members: dict, shown, hidden):
+    """A visible channel, a hidden source channel and someone in both, or None."""
+    options = [
+        (channel, source, person)
+        for channel in shown
+        for source in hidden
+        for person in sorted(members[channel] & members[source])
+    ]
+    return rng.choice(options) if options else None
+
+
+def _narrow_supersede(rng: random.Random, model: Versions, visible: dict):
+    """A ``supersedes`` from a narrow hidden memory to a visible one, or None."""
+    options = [
+        (source, target)
+        for source, memory in model.memories.items()
+        if memory["narrow"]
+        for target, fields in visible.items()
+        if fields["channel"] == memory["channel"]
+        and fields["key"] is None
+        and (fields["speaker"] == memory["speaker"] or memory["speaker"] in ADMINS)
+    ]
+    if not options:
+        return None
+    source, target = rng.choice(options)
+    return {
+        "op": "relate",
+        "source": source,
+        "target": target,
+        "relation": SUPERSEDES,
+        "deliberate": False,
+        "narrow": True,
+        "visible_end": target,
+    }
+
+
 def hidden_script(seed: int, world: str, viewers, churn: bool, visible_labels) -> dict:
-    """Other people's extra memberships and the hidden operations of world A or B."""
+    """Other people's extra memberships and the hidden operations of world A or B.
+
+    ``visible_labels`` maps each visible label to its channel, key and speaker.
+    """
     rng = random.Random("{}-hidden-{}".format(seed, world))
+    extra = random.Random("{}-hidden-{}-extra".format(seed, world))
     channels = hidden_channels(viewers)
+    shown = visible_channels(viewers)
     members = {channel: set(people) for channel, people in MEMBERS.items()}
     if churn:
         members[CHURN_CHANNEL].update(viewers)
@@ -488,8 +763,36 @@ def hidden_script(seed: int, world: str, viewers, churn: bool, visible_labels) -
                 channel,
                 speakers or PEOPLE,
             )
+            operation["source"] = None
+            if channel is not None:
+                narrow = (
+                    _narrow_placement(extra, members, shown, channels)
+                    if extra.random() < NARROW_SHARE
+                    else None
+                )
+                if narrow is not None:
+                    operation["channel"], operation["source"], operation["speaker"] = narrow
+                    operation["narrow"] = True
+                elif extra.random() < SOURCED_SHARE:
+                    operation["source"] = channel
             model.add(operation)
             script.append(operation)
+        # Extra operations come from their own stream, so the main one is unchanged.
+        sourced = [
+            label
+            for label, memory in model.memories.items()
+            if memory["source"] is not None and not memory["stale"]
+        ]
+        if sourced and extra.random() < HIDDEN_RETRACT:
+            label = extra.choice(sourced)
+            script.append(
+                {"op": "retract", "label": label, "speaker": model.memories[label]["speaker"]}
+            )
+            model.retract(label)
+        if extra.random() < NARROW_SUPERSEDE:
+            operation = _narrow_supersede(extra, model, visible_labels)
+            if operation is not None:
+                script.append(operation)
     return {"joins": joins, "operations": script}
 
 
@@ -523,6 +826,7 @@ def extra_add(seed: int, viewers, first_search: dict, index: int) -> dict:
         "content": first_search["query"],
         "key": None,
         "speaker": rng.choice(MEMBERS[channel]),
+        "source": None,
         "expect": "ok",
     }
 
@@ -535,9 +839,18 @@ def make_pair(seed: int) -> dict:
     carryover = rng.choice(CARRYOVERS)
     embedder = rng.choice(EMBEDDERS)
     visible = visible_script(seed, viewers)
-    labels = [operation["label"] for operation in visible if operation["op"] == "add"]
+    adds = [operation for operation in visible if operation["op"] == "add"]
+    labels = [operation["label"] for operation in adds]
+    fields = {
+        operation["label"]: {
+            "channel": operation["channel"],
+            "key": operation["key"],
+            "speaker": operation["speaker"],
+        }
+        for operation in adds
+    }
     hidden = {
-        world: hidden_script(seed, world, viewers, churn, labels) for world in ("A", "B")
+        world: hidden_script(seed, world, viewers, churn, fields) for world in ("A", "B")
     }
     order = {
         world: interleave(seed, world, len(visible), len(hidden[world]["operations"]))
@@ -562,8 +875,30 @@ def _part(world: str) -> str:
     return "B" if world == "B" else "A"
 
 
-def world_sequence(pair: dict, world: str) -> list:
-    """(script, operation) pairs in the order a world runs them."""
+def _names(operation: dict, labels) -> bool:
+    """Whether an operation is a retraction or writes or relates one of ``labels``."""
+    if operation["op"] == "retract":
+        return True
+    if operation["op"] == "add":
+        return operation["label"] in labels
+    return operation["source"] in labels or operation["target"] in labels
+
+
+def world_sequence(pair: dict, world: str, outcomes=None) -> list:
+    """(script, operation) pairs in the order a world runs them.
+
+    N needs R's visible ``outcomes``: it runs the operations that succeeded
+    in R, without retractions, adds of retracted memories or relates naming one.
+    """
+    if world == "N":
+        retracted = {
+            operation["label"] for operation in pair["visible"] if operation["op"] == "retract"
+        }
+        return [
+            ("visible", operation)
+            for operation, outcome in zip(pair["visible"], outcomes)
+            if outcome == "ok" and not _names(operation, retracted)
+        ]
     if world == "R":
         return [("visible", operation) for operation in pair["visible"]]
     part = _part(world)
@@ -593,16 +928,26 @@ def _refusal(error: ValueError) -> str:
 def _apply(store: MemoryStore, record: dict, operation: dict) -> str:
     try:
         if operation["op"] == "add":
+            label, source = operation["label"], operation.get("source")
+            source_ids = None
+            if source is not None:
+                message = store.add_message(
+                    operation["content"], channel=source, speaker=operation["speaker"]
+                )
+                record["messages"][label] = message.id
+                source_ids = [message.id]
             memory = store.add_memory(
                 operation["content"],
                 operation["kind"],
                 memory_key=operation["key"],
                 channel=operation["channel"],
                 speaker=operation["speaker"],
+                source_message_ids=source_ids,
             )
-            record["ids"][operation["label"]] = memory.id
-            record["labels"][memory.id] = operation["label"]
-            record["channels"][operation["label"]] = operation["channel"]
+            record["ids"][label] = memory.id
+            record["labels"][memory.id] = label
+            record["channels"][label] = operation["channel"]
+            record["sources"][label] = [] if source is None else [source]
         elif operation["op"] == "member":
             channel, person = operation["channel"], operation["person"]
             if operation["action"] == "join":
@@ -611,6 +956,10 @@ def _apply(store: MemoryStore, record: dict, operation: dict) -> str:
             else:
                 store.leave_channel(channel, person)
                 record["members"][channel].discard(person)
+        elif operation["op"] == "retract":
+            store.retract_message(
+                record["messages"][operation["label"]], actor_id=operation["speaker"]
+            )
         else:
             store.relate(
                 record["ids"][operation["source"]],
@@ -622,28 +971,36 @@ def _apply(store: MemoryStore, record: dict, operation: dict) -> str:
     return "ok"
 
 
-def build_world(store: MemoryStore, pair: dict, world: str) -> dict:
+def build_world(store: MemoryStore, pair: dict, world: str, outcomes=None) -> dict:
     """Run one world's memberships and operations; return the experiment's record.
 
-    The record holds the labels, each memory's channel and the memberships as
-    the experiment wrote them, and every operation's outcome.
+    The record holds the labels, each memory's channel and source channels,
+    the memberships as the experiment wrote them, and every operation's
+    outcome. Two models replay the world: the visible one (the visible script
+    alone) decides skips, and the administrative one (every operation) predicts
+    hidden outcomes and shows which visible outcomes depend on hidden memories.
+    ``outcomes`` are R's visible outcomes, which N needs.
     """
     viewers = pair["viewers"]
+    reference = world in ("R", "N")
     record = {
         "ids": {},
         "labels": {},
         "channels": {},
+        "sources": {},
+        "messages": {},
         "members": {channel: set() for channel in CHANNELS},
         "visible": [],
         "hidden": [],
+        "dependent": [],
     }
     memberships = [
         (channel, member)
         for channel, people in MEMBERS.items()
         for member in people
-        if world != "R" or member in POTENTIAL_VIEWERS
+        if not reference or member in POTENTIAL_VIEWERS
     ]
-    if world != "R":
+    if not reference:
         memberships += [
             (join["channel"], join["person"]) for join in pair["hidden"][_part(world)]["joins"]
         ]
@@ -652,28 +1009,39 @@ def build_world(store: MemoryStore, pair: dict, world: str) -> dict:
     for channel, member in memberships:
         store.join_channel(channel, member)
         record["members"][channel].add(member)
+    for admin in ADMINS:
+        store.add_admin(admin)
 
     shown = Versions()  # the visible model, replayed as the visible script runs
-    for source, operation in world_sequence(pair, world):
+    administrative = Versions()  # every operation of this world
+    for source, operation in world_sequence(pair, world, outcomes):
         if source == "visible":
-            record["visible"].append(_apply(store, record, operation))
-            if operation["op"] == "add":
-                shown.add(operation)
-            else:
-                shown.relate(operation["source"], operation["target"], operation["relation"])
+            predicted = administrative.apply(operation)
+            outcome = _apply(store, record, operation)
+            record["visible"].append(outcome)
+            if predicted != operation["expect"]:
+                record["dependent"].append(
+                    {
+                        "visible": operation["expect"],
+                        "administrative": predicted,
+                        "outcome": outcome,
+                    }
+                )
+            shown.apply(operation)
             continue
-        expect, outcome = operation["expect"], None
         end = operation.get("visible_end")
         if end is not None and end not in shown.memories:
             expect = outcome = "skipped: not written yet"
-        elif end is not None and not shown.memories[end]["active"]:
+        elif end is not None and not shown.is_active(end):
             expect = outcome = "skipped: archived"
-        if outcome is None:
+        else:
+            expect = administrative.apply(operation)
             outcome = _apply(store, record, operation)
         record["hidden"].append(
             {
                 "op": operation["op"],
                 "deliberate": operation.get("deliberate", False),
+                "narrow": operation.get("narrow", False),
                 "expect": expect,
                 "outcome": outcome,
             }
@@ -683,6 +1051,9 @@ def build_world(store: MemoryStore, pair: dict, world: str) -> dict:
         for viewer in viewers:
             store.leave_channel(CHURN_CHANNEL, viewer)
             record["members"][CHURN_CHANNEL].discard(viewer)
+    record["replaced in admin view"] = sorted(
+        label for label in shown.active() if not administrative.is_active(label)
+    )
     return record
 
 
@@ -731,13 +1102,16 @@ def _search_row(record: dict, result, links) -> tuple:
                 for link in links
             )
         ),
+        result.claim_status,
     )
 
 
 def _visibility(record: dict, viewers):
     """Whether the viewers may see a memory, from the experiment's own record.
 
-    The after arms use this; it never asks the store's ``viewers`` code.
+    A memory is visible if every viewer is in its channel and in every source
+    message's channel. The after arms use this; it never asks the store's
+    ``viewers`` code.
     """
     channels = {
         channel
@@ -746,8 +1120,13 @@ def _visibility(record: dict, viewers):
     }
 
     def visible(memory_id: str) -> bool:
-        channel = record["channels"].get(record["labels"].get(memory_id))
-        return channel is not None and channel in channels
+        label = record["labels"].get(memory_id)
+        channel = record["channels"].get(label)
+        return (
+            channel is not None
+            and channel in channels
+            and all(source in channels for source in record["sources"].get(label, ()))
+        )
 
     return visible
 
@@ -824,10 +1203,13 @@ def _reads(store: MemoryStore, record: dict, pair: dict, viewers) -> dict:
             ]
             for search in plan["searches"]
         ],
+        # A label this world never wrote (a retracted memory in N) reads as missing.
         "get": {
             label: _memory_row(
                 record, store.get_memory(record["ids"][label], viewers=viewers)
             )
+            if label in record["ids"]
+            else None
             for label in plan["labels"]
         },
         "history": {
@@ -835,6 +1217,8 @@ def _reads(store: MemoryStore, record: dict, pair: dict, viewers) -> dict:
                 _memory_row(record, memory)
                 for memory in store.history(record["ids"][label], viewers=viewers)
             ]
+            if label in record["ids"]
+            else []
             for label in plan["labels"]
         },
         "list active": listed(False),
@@ -871,14 +1255,19 @@ def _hidden_returned(store: MemoryStore, record: dict, viewers) -> list:
     ]
 
 
-def observe(pair: dict, world: str) -> dict:
-    """Build one world in a fresh store and run its arms' reads."""
+def observe(pair: dict, world: str, outcomes=None) -> dict:
+    """Build one world in a fresh store and run its arms' reads.
+
+    ``outcomes`` are R's visible outcomes, which world N needs.
+    """
     with open_store(pair) as store:
-        record = build_world(store, pair, world)
+        record = build_world(store, pair, world, outcomes)
         observation = {
             "labels": sorted(record["ids"]),
             "visible outcomes": record["visible"],
             "hidden outcomes": record["hidden"],
+            "dependent": record["dependent"],
+            "replaced in admin view": record["replaced in admin view"],
             "arms": {arm: READERS[arm](store, record, pair) for arm in WORLD_ARMS[world]},
         }
         if world in ("A", "B"):
@@ -999,6 +1388,8 @@ def hidden_mentions(reads: dict) -> list:
 def _describe(operation: dict) -> str:
     if operation["op"] == "add":
         return "add {} to {}".format(operation["label"], operation["channel"])
+    if operation["op"] == "retract":
+        return "retract the source of {}".format(operation["label"])
     return "{} {} {}".format(operation["source"], operation["relation"], operation["target"])
 
 
@@ -1011,9 +1402,9 @@ def _outcome_counts(outcomes: list) -> dict:
 
 
 def evaluate(pair: dict, seen: dict) -> dict:
-    """Every check of one pair, from the observations of its five worlds."""
+    """Every check of one pair, from the observations of its six worlds."""
     expected = [operation["expect"] for operation in pair["visible"]]
-    a, a2, b, plus, r = (seen[world] for world in WORLDS)
+    a, a2, b, plus, r, never = (seen[world] for world in WORLDS)
     built = a["arms"]["built"]
     details = {}
 
@@ -1065,6 +1456,16 @@ def evaluate(pair: dict, seen: dict) -> dict:
             "; and {} more".format(len(leaks) - 5) if len(leaks) > 5 else ""
         )
 
+    refused = [outcome for outcome in never["visible outcomes"] if outcome != "ok"]
+    if refused:
+        details["retraction"] = "N refused {} operation(s), first: {}".format(
+            len(refused), refused[0]
+        )
+    else:
+        where = first_difference(built, never["arms"]["plain"])
+        if where is not None:
+            details["retraction"] = "built(A) and plain(N) differ at {}".format(where)
+
     if built == plus["arms"]["built"]:
         details["sensitivity"] = "built(A) and built(A+) are identical"
     power = a["arms"]["after-naive"] != b["arms"]["after-naive"]
@@ -1075,11 +1476,19 @@ def evaluate(pair: dict, seen: dict) -> dict:
         "noninterference": not problems,
         "exactness": "exactness" not in details,
         "soundness": not leaks,
+        "retraction": "retraction" not in details,
     }
 
     hidden = a["hidden outcomes"] + b["hidden outcomes"]
     deliberate = [item for item in hidden if item["deliberate"]]
     issued = [item for item in deliberate if not item["outcome"].startswith("skipped")]
+    narrow_relates = [
+        item for item in hidden
+        if item["narrow"] and item["op"] == "relate"
+        and not item["outcome"].startswith("skipped")
+    ]
+    retractions = [operation for operation in pair["visible"] if operation["op"] == "retract"]
+    dependent = a["dependent"] + b["dependent"]
     return {
         "seed": pair["seed"],
         "viewers": pair["viewers"],
@@ -1105,14 +1514,49 @@ def evaluate(pair: dict, seen: dict) -> dict:
             "cross_channel_refused": sum(
                 item["outcome"].startswith("refused") for item in issued
             ),
-            "memories": {world: len(seen[world]["labels"]) for world in ("A", "B", "R")},
+            "narrow_adds": sum(
+                operation["op"] == "add" and operation.get("narrow", False)
+                for part in ("A", "B")
+                for operation in pair["hidden"][part]["operations"]
+            ),
+            "narrow_supersedes_issued": len(narrow_relates),
+            "narrow_supersedes_accepted": sum(
+                item["outcome"] == "ok" for item in narrow_relates
+            ),
+            "hidden_retractions": sum(
+                item["op"] == "retract" and item["outcome"] == "ok" for item in hidden
+            ),
+            "visible_retractions": len(retractions),
+            "retractions_of_replacers": sum(operation["replacer"] for operation in retractions),
+            "replaced_in_admin_view": len(a["replaced in admin view"])
+            + len(b["replaced in admin view"]),
+            "visible_dependent": len(dependent),
+            "visible_dependent_went_administrative": sum(
+                item["outcome"] == item["administrative"] for item in dependent
+            ),
+            "visible_dependent_went_visible": sum(
+                item["outcome"] == item["visible"] for item in dependent
+            ),
+            "memories": {
+                world: len(seen[world]["labels"]) for world in ("A", "B", "R", "N")
+            },
         },
     }
 
 
+def observe_all(pair: dict) -> dict:
+    """Observe every world of a pair; N follows R's visible outcomes."""
+    seen = {}
+    for world in WORLDS:  # R comes before N
+        seen[world] = observe(
+            pair, world, seen["R"]["visible outcomes"] if world == "N" else None
+        )
+    return seen
+
+
 def run_trial(seed: int) -> dict:
     pair = make_pair(seed)
-    return evaluate(pair, {world: observe(pair, world) for world in WORLDS})
+    return evaluate(pair, observe_all(pair))
 
 
 def summarise(trials: list) -> dict:
@@ -1146,9 +1590,29 @@ def summarise(trials: list) -> dict:
             "cross_channel_attempted",
             "cross_channel_issued",
             "cross_channel_refused",
+            "narrow_adds",
+            "narrow_supersedes_issued",
+            "narrow_supersedes_accepted",
+            "hidden_retractions",
+            "visible_retractions",
+            "retractions_of_replacers",
+            "replaced_in_admin_view",
+            "visible_dependent",
+            "visible_dependent_went_administrative",
+            "visible_dependent_went_visible",
         )
     }
     operations["hidden_outcomes"] = dict(sorted(hidden_outcomes.items()))
+    # Pairs that gave each new check something to catch.
+    operations["pairs_with_admin_replacement"] = sum(
+        trial["operations"]["replaced_in_admin_view"] > 0 for trial in trials
+    )
+    operations["pairs_retracting_a_replacer"] = sum(
+        trial["operations"]["retractions_of_replacers"] > 0 for trial in trials
+    )
+    operations["pairs_with_dependent_visible_outcome"] = sum(
+        trial["operations"]["visible_dependent"] > 0 for trial in trials
+    )
     failures = {}
     for name in CHECKS:
         kept = [
@@ -1189,6 +1653,7 @@ def decide(summary: dict, trials: int) -> dict:
         4: checks["noninterference"]["held"] == trials,
         5: checks["exactness"]["held"] == trials,
         6: checks["soundness"]["held"] == trials,
+        7: checks["retraction"]["held"] == trials,
     }
     failed_controls = [number for number in CONTROL_RULES if not holds[number]]
     failed_rules = [number for number in BUILT_RULES if not holds[number]]
@@ -1232,13 +1697,15 @@ def render(report: dict) -> str:
     operations = summary["operations"]
     hidden = operations["hidden_outcomes"]
     lines = [
-        "# Noninterference of reads with viewers (E2)",
+        "# Noninterference of reads with viewers (E2, version 2)",
         "",
         "Synthetic, scripted data; no LLM. {} pairs (seeds 0 to {}).".format(
             trials, trials - 1
         ),
+        "Store under test: schema version {}.".format(report["store_schema_version"]),
         "In each pair, worlds A and B run the same visible operations and different",
-        "hidden ones, and R runs the visible operations alone. See the docstring of",
+        "hidden ones, R runs the visible operations alone, and N runs them as if the",
+        "retracted memories had never been written. See the docstring of",
         "`experiments/audience_noninterference.py` for the design and decision rule.",
         "",
         "Pairs: viewers ana alone {}, ana and ben {}; viewers joined and left"
@@ -1278,6 +1745,11 @@ def render(report: dict) -> str:
             " hidden IDs read as missing",
             "every pair",
         ),
+        (
+            7,
+            "Retraction: built(A) equals plain(N), and N refused nothing",
+            "every pair",
+        ),
     )
     for number, text, needed in rows:
         name = RULES[number]
@@ -1307,22 +1779,54 @@ def render(report: dict) -> str:
             _share(summary["model_predicts_visible_outcomes"], trials)
         ),
         "- Visible operations: {}, of which the visible model predicted {} to be"
-        " refused (a `supersedes` across channels or of a newer memory).".format(
-            operations["visible"], operations["visible_refused"]
+        " refused (a `supersedes` that crosses channels, speakers or keys, targets a"
+        " keyed claim or names a newer memory); {} retractions, {} of them of a"
+        " memory that replaced another (in {} pairs).".format(
+            operations["visible"],
+            operations["visible_refused"],
+            operations["visible_retractions"],
+            operations["retractions_of_replacers"],
+            _share(operations["pairs_retracting_a_replacer"], trials),
         ),
-        "- Hidden operations in A and B together: {}. Adds {}; relates accepted {},"
-        " refused because an end was archived {}, refused because the source was"
-        " older {}, refused across channels {}; relates skipped because the visible"
-        " end was not written yet {} or was archived {}; membership changes {}."
-        " Outcomes that differed from the hidden script's own prediction: {}.".format(
+        "- Visible operations in A and B whose outcome in the administrative model"
+        " (every memory) differs from the visible model's: {} (in {} pairs). The"
+        " store's outcome matched the administrative model in {} and the visible"
+        " model in {}.".format(
+            operations["visible_dependent"],
+            _share(operations["pairs_with_dependent_visible_outcome"], trials),
+            operations["visible_dependent_went_administrative"],
+            operations["visible_dependent_went_visible"],
+        ),
+        "- Visible memories that hidden activity left replaced in the administrative"
+        " model while the visible model keeps them active (where a store resolving"
+        " claims when written would show the viewers a change), A and B together: {}"
+        " (in {} pairs).".format(
+            operations["replaced_in_admin_view"],
+            _share(operations["pairs_with_admin_replacement"], trials),
+        ),
+        "- Hidden operations in A and B together: {}. Adds {} ({} narrow); relates"
+        " accepted {}, refused because an end was not active {}, refused because the"
+        " source was older {}, refused across channels {}, refused for authority {},"
+        " refused for the key {}, refused for a keyed target {}; relates skipped"
+        " because the visible end was not written yet {} or was not active {};"
+        " narrow `supersedes` issued {}, accepted {}; retractions {}; membership"
+        " changes {}. Outcomes that differed from the administrative model's"
+        " prediction: {}.".format(
             operations["hidden"],
             hidden.get("add: ok", 0),
+            operations["narrow_adds"],
             hidden.get("relate: ok", 0),
             hidden.get("relate: refused: not active", 0),
             hidden.get("relate: refused: older", 0),
             hidden.get("relate: refused: other channel", 0),
+            hidden.get("relate: refused: other speaker", 0),
+            hidden.get("relate: refused: other key", 0),
+            hidden.get("relate: refused: keyed claim", 0),
             hidden.get("relate: skipped: not written yet", 0),
             hidden.get("relate: skipped: archived", 0),
+            operations["narrow_supersedes_issued"],
+            operations["narrow_supersedes_accepted"],
+            operations["hidden_retractions"],
             hidden.get("member: ok", 0),
             operations["hidden_unpredicted"],
         ),
@@ -1382,7 +1886,8 @@ def render(report: dict) -> str:
         "`list_memories` is not compared (key rewrites tie on `updated_at`), so a",
         "channel through those would not be detected; access counts are shared by",
         "design (`record_access=False` on every read). The only embedder is the n-gram",
-        "baseline; pruning and `restore` are not exercised.",
+        "baseline; pruning, `restore`, delegation, personal facts and bound writers",
+        "are not exercised, and the only admin (cy) writes only hidden memories.",
         "",
     ]
     return "\n".join(lines)
@@ -1417,6 +1922,13 @@ def main(argv=None) -> int:
             "no_channel": NO_CHANNEL,
             "cross_supersedes": CROSS_SUPERSEDES,
             "hidden_partner": HIDDEN_PARTNER,
+            "admins": ADMINS,
+            "sourced_share": SOURCED_SHARE,
+            "narrow_share": NARROW_SHARE,
+            "hidden_retract": HIDDEN_RETRACT,
+            "narrow_supersede": NARROW_SUPERSEDE,
+            "visible_retractions": VISIBLE_RETRACTIONS,
+            "retract_replacer": RETRACT_REPLACER,
             "others_join": OTHERS_JOIN,
             "churn": CHURN,
             "searches": SEARCHES,
@@ -1426,6 +1938,7 @@ def main(argv=None) -> int:
             "list_limit": LIST_LIMIT,
             "big": BIG,
         },
+        "store_schema_version": SCHEMA_VERSION,
         "summary": summary,
         "decision": decide(summary, arguments.trials),
     }

@@ -501,11 +501,17 @@ class LinkTests(AudienceCase):
                 sorted(store._links_touching(connection, [seed.id], erin), key=repr),
                 sorted([visible_link, hidden_link], key=repr),
             )
-            self.assertEqual(store._search_links(connection, [seed.id], alice), [visible_link])
+            alice_view = store._claim_view(connection, alice)
+            erin_view = store._claim_view(connection, erin)
+            self.assertEqual(
+                store._search_links(connection, [seed.id], alice, alice_view), [visible_link]
+            )
 
             ids = [seed.id, hidden.id, shown.id]
-            self.assertEqual(store._active_ids(connection, ids, alice), {seed.id, shown.id})
-            self.assertEqual(store._active_ids(connection, ids, erin), set(ids))
+            self.assertEqual(
+                store._active_ids(connection, ids, alice, alice_view), {seed.id, shown.id}
+            )
+            self.assertEqual(store._active_ids(connection, ids, erin, erin_view), set(ids))
 
             self.assertEqual(store._earlier_versions(connection, [seed.id], alice), set())
             self.assertEqual(store._earlier_versions(connection, [seed.id], erin), {earlier.id})
@@ -522,13 +528,16 @@ class LinkTests(AudienceCase):
         seed = self.say("The launch date is Friday.", "design", store=store)
         other = self.say("Carol owns the launch checklist.", "design", store=store)
         store.relate(other.id, seed.id, Relationship.CONTRADICTS)
-        helpers = (
-            "_search_links",
-            "_links_touching",
-            "_earlier_versions",
-            "_current_versions",
-            "_active_ids",
-        )
+        # Where each helper takes the viewers, counted from the end of its
+        # positional arguments (some take the resolved claim view last).
+        helpers = {
+            "_claim_view": -1,
+            "_search_links": -2,
+            "_links_touching": -1,
+            "_earlier_versions": -1,
+            "_current_versions": -1,
+            "_active_ids": -2,
+        }
         with ExitStack() as stack:
             spies = {
                 name: stack.enter_context(
@@ -541,7 +550,7 @@ class LinkTests(AudienceCase):
         for name, spy in spies.items():
             self.assertTrue(spy.call_args_list, name)
             for call in spy.call_args_list:
-                self.assertEqual(call.args[-1], ("alice", "erin"), name)
+                self.assertEqual(call.args[helpers[name]], ("alice", "erin"), name)
 
 
 class DisputeTests(AudienceCase):
@@ -1082,7 +1091,7 @@ class UpgradeTests(AudienceCase):
         )
         self.assertEqual([m.id for m in reopened.sources_of(derived.id)], [source.id])
         with reopened._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
 
     def test_version_2_channel_key_index_is_rebuilt_for_speakers(self):
         path = Path(self.temp_dir.name) / "v2.sqlite3"
@@ -1092,7 +1101,7 @@ class UpgradeTests(AudienceCase):
             speaker="alice", memory_key="review",
         )
         with store._transaction() as connection:
-            connection.execute("DROP INDEX one_active_memory_per_channel_key")
+            connection.execute("DROP INDEX IF EXISTS one_active_memory_per_channel_key")
             connection.execute(
                 """
                 CREATE UNIQUE INDEX one_active_memory_per_channel_key
@@ -1109,7 +1118,7 @@ class UpgradeTests(AudienceCase):
             speaker="bob", memory_key="review",
         )
         with reopened._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
         self.assertEqual(len(reopened.list_memories()), 2)
 
     def test_a_version_0_2_database_is_upgraded_in_place(self):
@@ -1128,7 +1137,7 @@ class UpgradeTests(AudienceCase):
         MemoryStore(path)  # opening again changes nothing
 
         with store._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
         old = store.get_memory("old")
         self.assertEqual((old.channel, old.speaker), (None, None))
         self.assertEqual([r.memory.id for r in store.search("launch")], ["old"])

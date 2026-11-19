@@ -217,6 +217,18 @@ store.add_memory("x", "fact")                  # raises: bound writer required
 - **Keys belong to a channel.** The same key in two channels names two
   separate memories, and a memory can only supersede one in its own channel.
   A write in one channel therefore never replaces a memory in another.
+- **Claims are resolved when read.** A channel memory is never archived or
+  superseded when another is written. Each read works out which claims
+  replace which, their `claim_status`, the `contradicts` links between claims
+  of one key, and `superseded_by` and `history`, from the memories that read
+  may use: visible to its viewers and not stale. A claim drawn from a source
+  some viewers cannot see therefore replaces nothing for them, and a retracted
+  claim no longer replaces anything. An explicit `supersedes` link between
+  channel memories is applied the same way, and cannot target a keyed claim
+  (write a new claim for the key instead). `relate` checks only that its two
+  memories exist and are not archived (pruned or stale); it can link a claim
+  that some viewers see as replaced, and the link counts for viewers in whose
+  view that claim still stands.
 - **Speaker claims remain attributed.** A keyed channel memory needs a
   `speaker`. That speaker can correct their earlier claim. A different
   speaker's differing claim remains active with a `contradicts` link. Search
@@ -253,6 +265,9 @@ Limits:
 - The store does not authenticate identities. `add_admin`, membership changes,
   direct administrative writes, and the SQLite file require trusted code.
 - Access counts and pruning are shared by everyone in the store.
+- A write that would change a key's scope or personal subject is refused
+  after checking the key's whole history, so the refusal can reveal to the
+  writer that a claim they cannot see exists.
 - A standalone dispute table and automatic regeneration of stale derivations
   are not implemented. The broader design is in
   [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
@@ -278,7 +293,10 @@ every source message's channel**. A writer must currently belong to each source
 channel. Retraction replaces the message content with a tombstone, marks every
 memory listing it as a source stale, archives those memories, and removes their
 embeddings. Search, history, direct reads and link traversal exclude stale
-memories. `restore` cannot reactivate one. Rebuild by recomputing its content
+memories, and whatever a stale memory had replaced stands again at the next
+read: retracting a correction brings back the earlier claim, and retracting an
+admin's resolution reopens the dispute. `restore` cannot reactivate a stale
+memory. Rebuild by recomputing its content
 and adding a new memory with only valid source message IDs; the store cannot
 regenerate model-written text itself. Trusted code can inspect the old source
 list with `sources_of(memory_id, include_stale=True)`.

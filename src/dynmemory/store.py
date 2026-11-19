@@ -16,7 +16,7 @@ from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
 
 from .embeddings import Embedder
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 class MemoryType(str, Enum):
@@ -135,6 +135,20 @@ class PruneCandidate:
     score: float
 
 
+@dataclass(frozen=True)
+class _ClaimView:
+    """How channel memories resolve for one audience (see ``MemoryStore._claim_view``).
+
+    ``replaced`` maps a replaced memory to the memory that replaced it and
+    when; ``statuses`` labels the keyed claims still standing; ``conflicts``
+    are the ``contradicts`` links between differing claims of one key.
+    """
+
+    replaced: Mapping[str, tuple[str, str]]
+    statuses: Mapping[str, str]
+    conflicts: tuple[Link, ...]
+
+
 class AudienceReader:
     """Read-only view of a store for a fixed, nonempty set of viewers.
 
@@ -251,6 +265,13 @@ class MemoryStore:
     rejects those reads, and ``for_viewers`` binds a reader to one audience.
     Use ``for_writer`` for member writes. ``require_writer=True`` prevents
     direct writes through this administrative store instance.
+
+    Memories in a channel are never archived or superseded when written.
+    Which keyed claim replaces which, and explicit ``supersedes`` links, are
+    resolved at each read from the memories that read may use: visible to its
+    viewers and not stale. A hidden or retracted write therefore changes
+    nothing a viewer reads. Memories without a channel keep write-time
+    replacement, as in single-user use.
     """
 
     _TOKEN_PATTERN = re.compile(r"\w+", re.UNICODE)
@@ -437,19 +458,14 @@ class MemoryStore:
             """,
         )
         indexes = (
-            # Channel keys have one active claim per speaker; memories without
-            # a channel share one namespace, as before channels existed.
+            # Memories without a channel share one key namespace, as before
+            # channels existed. A channel key keeps every claim written for it
+            # unarchived; reads decide which of them still stand.
             """
             CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_key
                 ON memories(memory_key)
                 WHERE memory_key IS NOT NULL AND archived_at IS NULL
                   AND channel IS NULL
-            """,
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS one_active_memory_per_channel_key
-                ON memories(channel, memory_key, speaker)
-                WHERE memory_key IS NOT NULL AND archived_at IS NULL
-                  AND channel IS NOT NULL AND speaker IS NOT NULL
             """,
             """
             CREATE UNIQUE INDEX IF NOT EXISTS one_active_unattributed_channel_key
@@ -519,7 +535,7 @@ class MemoryStore:
                 # Keys were unique across the whole store; the index is
                 # rebuilt below to cover only memories without a channel.
                 connection.execute("DROP INDEX IF EXISTS one_active_memory_per_key")
-            if version < 3:
+            if version < 6:
                 connection.execute("DROP INDEX IF EXISTS one_active_memory_per_channel_key")
             for statement in indexes:
                 connection.execute(statement)
@@ -545,6 +561,44 @@ class MemoryStore:
                     "WHERE " + legacy_edge
                 )
                 connection.execute("DELETE FROM relationships WHERE " + legacy_edge)
+            if version < 6:
+                # Channel memories used to be archived and superseded when a
+                # replacement was written. Undo that: reads now resolve them.
+                # A supersession archived its target at the moment it stored
+                # the supersedes link, so an equal timestamp marks an archive
+                # made by supersession rather than by pruning or staleness.
+                connection.execute(
+                    """
+                    UPDATE memories SET archived_at = NULL
+                    WHERE channel IS NOT NULL AND superseded_by IS NOT NULL
+                      AND stale_at IS NULL
+                      AND archived_at = (
+                          SELECT relationships.created_at FROM relationships
+                          WHERE relationships.relation = 'supersedes'
+                            AND relationships.source_id = memories.superseded_by
+                            AND relationships.target_id = memories.id
+                      )
+                    """
+                )
+                connection.execute(
+                    "UPDATE memories SET superseded_by = NULL WHERE channel IS NOT NULL"
+                )
+                # Replacements between claims of one channel key are replayed
+                # at read time; their stored links would count them twice.
+                connection.execute(
+                    """
+                    DELETE FROM relationships
+                    WHERE relation = 'supersedes' AND EXISTS (
+                        SELECT 1 FROM memories AS newer, memories AS older
+                        WHERE newer.id = relationships.source_id
+                          AND older.id = relationships.target_id
+                          AND newer.channel IS NOT NULL
+                          AND newer.channel = older.channel
+                          AND newer.memory_key IS NOT NULL
+                          AND newer.memory_key = older.memory_key
+                    )
+                    """
+                )
             if version < SCHEMA_VERSION:
                 connection.execute("PRAGMA user_version = {}".format(SCHEMA_VERSION))
 
@@ -864,16 +918,53 @@ class MemoryStore:
             )
 
     def stale_memories(self, *, limit: int = 100) -> list[Memory]:
-        """Administrative queue of derivations that need rebuilding."""
+        """Administrative queue of derivations that need rebuilding.
+
+        A stale memory is listed if it was in use when it went stale: it was
+        not archived before, and no memory that was still valid at that time,
+        or was written since (such as its rebuild), replaces it.
+        """
         if limit < 1:
             raise ValueError("limit must be positive")
+        queue = []
         with self._transaction(write=False) as connection:
-            return [self._memory_from_row(row) for row in connection.execute(
+            rows = connection.execute(
                 """SELECT * FROM memories WHERE stale_at IS NOT NULL
                 AND archived_at = stale_at AND superseded_by IS NULL
-                ORDER BY stale_at, id LIMIT ?""",
-                (limit,),
-            )]
+                ORDER BY stale_at, id"""
+            ).fetchall()
+            for row in rows:
+                if row["channel"] is not None and self._replaced_since_stale(
+                    connection, row
+                ):
+                    continue
+                queue.append(self._memory_from_row(row))
+                if len(queue) == limit:
+                    break
+        return queue
+
+    def _replaced_since_stale(
+        self, connection: sqlite3.Connection, row: sqlite3.Row
+    ) -> bool:
+        """Whether a memory valid when ``row`` went stale, or later, replaces it."""
+        if row["memory_key"] is not None:
+            claims = connection.execute(
+                """SELECT {} FROM memories WHERE channel = ? AND memory_key = ?
+                AND (stale_at IS NULL OR stale_at >= ?)
+                ORDER BY created_at, rowid""".format(self._CLAIM_COLUMNS),
+                (row["channel"], row["memory_key"], row["stale_at"]),
+            ).fetchall()
+            if row["id"] in self._replay(claims)[0]:
+                return True
+        return connection.execute(
+            """SELECT 1 FROM relationships
+            JOIN memories ON memories.id = relationships.source_id
+            WHERE relationships.relation = 'supersedes'
+              AND relationships.target_id = ?
+              AND (memories.stale_at IS NULL OR memories.stale_at >= ?)
+            LIMIT 1""",
+            (row["id"], row["stale_at"]),
+        ).fetchone() is not None
 
     def grant_delegation(
         self, channel: str, memory_key: str, member_id: str, *, granted_by: str
@@ -973,10 +1064,13 @@ class MemoryStore:
         """Store a memory; a keyed channel claim belongs to its speaker.
 
         ``channel`` is where the memory was said and ``speaker`` who said it.
-        In a channel, the same speaker corrects their own claim. A different
-        speaker's differing claim stays active and is linked as a contradiction.
-        A workspace admin resolves non-admin claims; two admins' first claims
-        can disagree until one restates. Unchannelled keys keep their original
+        A keyed channel claim is stored as it is, and reads apply rule 2 to
+        the claims they may use (see ``_replay``): the same speaker corrects
+        their own claim, a different speaker's differing claim stands beside
+        it as a contradiction, a workspace admin resolves non-admin claims,
+        and two admins' first claims disagree until one restates. The write
+        only checks that the speaker's own standing claim does not carry more
+        authority than this one. Unchannelled keys keep their original
         single-user replacement behavior.
         """
         if not content or not content.strip():
@@ -1038,7 +1132,6 @@ class MemoryStore:
                 ):
                     raise ValueError("source message is unavailable to the writer")
             predecessors = []
-            conflicts = []
             asserted_as_admin = bool(
                 channel is not None and speaker is not None
                 and connection.execute(
@@ -1054,71 +1147,49 @@ class MemoryStore:
                     (channel, memory_key, speaker),
                 ).fetchone() is not None
             )
-            if memory_key is not None:
-                heads = connection.execute(
+            if memory_key is not None and channel is None:
+                predecessors = connection.execute(
                     """
-                    SELECT id, speaker, content, archived_at, asserted_as_admin,
-                           asserted_as_delegate, fact_subject
-                    FROM memories
+                    SELECT id, archived_at FROM memories
                     WHERE memory_key = ? AND superseded_by IS NULL
-                      AND channel IS ?
+                      AND channel IS NULL
                     """,
-                    (memory_key, channel),
+                    (memory_key,),
                 ).fetchall()
-                if channel is not None and connection.execute(
-                    """SELECT 1 FROM memories WHERE memory_key = ? AND channel = ?
-                    AND fact_subject IS NOT ? LIMIT 1""",
-                    (memory_key, channel, fact_subject),
-                ).fetchone():
-                    raise ValueError("claim scope or personal subject differs from key history")
-                if channel is None:
-                    predecessors = heads
-                else:
-                    incoming = {
-                        "speaker": speaker, "fact_subject": fact_subject,
-                        "asserted_as_admin": asserted_as_admin,
-                        "asserted_as_delegate": asserted_as_delegate,
-                    }
-                    rank = self._claim_rank(incoming)
-                    if any(
-                        head["speaker"] == speaker
-                        and head["archived_at"] is None
-                        and self._claim_rank(head) > rank
-                        for head in heads
-                    ):
-                        raise ValueError(
-                            "a lapsed authority cannot revise its earlier claim"
-                        )
-                    other_active = [head for head in heads
-                                    if head["speaker"] != speaker
-                                    and head["archived_at"] is None]
-                    other_max = max((self._claim_rank(head) for head in other_active), default=-1)
-                    restatement = any(
-                        head["speaker"] == speaker and head["archived_at"] is None
-                        and self._claim_rank(head) == rank for head in heads
-                    )
-                    resolve_all = rank > 0 and (
-                        rank > other_max or (rank == other_max and restatement)
-                    )
-                    predecessors = [
-                        head for head in heads
-                        if head["speaker"] == speaker or
-                        (resolve_all and self._claim_rank(head) <= rank)
-                    ]
-                    predecessor_ids = {head["id"] for head in predecessors}
-                    conflicts = [
-                        head for head in heads
-                        if head["id"] not in predecessor_ids
-                        and head["archived_at"] is None
-                        and head["content"].strip().casefold()
-                        != content.strip().casefold()
-                    ]
                 for previous in predecessors:
                     if previous["archived_at"] is None:
                         connection.execute(
                             "UPDATE memories SET archived_at = ?, updated_at = ? WHERE id = ?",
                             (now, now, previous["id"]),
                         )
+            elif memory_key is not None:
+                if connection.execute(
+                    """SELECT 1 FROM memories WHERE memory_key = ? AND channel = ?
+                    AND fact_subject IS NOT ? LIMIT 1""",
+                    (memory_key, channel, fact_subject),
+                ).fetchone():
+                    raise ValueError("claim scope or personal subject differs from key history")
+                rank = self._claim_rank({
+                    "speaker": speaker, "fact_subject": fact_subject,
+                    "asserted_as_admin": asserted_as_admin,
+                    "asserted_as_delegate": asserted_as_delegate,
+                })
+                # The administrative view: every claim of the key that is not stale.
+                standing = self._replay(connection.execute(
+                    """SELECT {} FROM memories
+                    WHERE channel = ? AND memory_key = ? AND stale_at IS NULL
+                    ORDER BY created_at, rowid""".format(self._CLAIM_COLUMNS),
+                    (channel, memory_key),
+                ).fetchall())[1]
+                if any(
+                    claim["speaker"] == speaker
+                    and claim["archived_at"] is None
+                    and self._claim_rank(claim) > rank
+                    for claim in standing
+                ):
+                    raise ValueError(
+                        "a lapsed authority cannot revise its earlier claim"
+                    )
 
             connection.execute(
                 """
@@ -1157,15 +1228,6 @@ class MemoryStore:
 
             for previous in predecessors:
                 self._record_supersession(connection, memory_id, previous["id"], now)
-            for other in conflicts:
-                connection.execute(
-                    """
-                    INSERT INTO relationships (source_id, target_id, relation, created_at)
-                    VALUES (?, ?, 'contradicts', ?)
-                    ON CONFLICT DO NOTHING
-                    """,
-                    (memory_id, other["id"], now),
-                )
 
             row = connection.execute(
                 "SELECT * FROM memories WHERE id = ?", (memory_id,)
@@ -1213,12 +1275,22 @@ class MemoryStore:
         target_id: str,
         relation: Union[Relationship, str] = Relationship.RELATED_TO,
     ) -> None:
-        """Link two active memories; the link reads ``source relation target``.
+        """Link two memories; the link reads ``source relation target``.
 
-        ``supersedes`` archives the target and records the source as its
-        replacement. A source without a key takes over the target's key.
-        Both must be in the same channel. Within a channel, the source must
-        have the same speaker or higher write-time authority for that claim.
+        Both memories must exist and not be archived (pruned, stale, or,
+        without a channel, replaced). Whether a channel memory has been
+        replaced is decided by each read, so it does not count here: the
+        decision would otherwise depend on memories the people who see the
+        link may not see. A link to a replaced claim counts for the viewers
+        in whose view the claim still stands.
+
+        ``supersedes`` records the source as the target's replacement. Both
+        must be in the same channel. Without a channel, the target is archived
+        at once and a source without a key takes over the target's key.
+        Within a channel, the source must have the same speaker or higher
+        write-time authority, the target must not be a keyed claim (claims are
+        revised by writing a new claim for the key), and reads apply the
+        supersession only while its source is visible to them and not stale.
         """
         try:
             relation_type = Relationship(relation)
@@ -1268,6 +1340,11 @@ class MemoryStore:
                     raise ValueError(
                         "only a same-speaker claim with retained authority or a higher-authority holder can supersede a channel claim"
                     )
+                if newer["channel"] is not None and older["memory_key"] is not None:
+                    raise ValueError(
+                        "a keyed channel claim is revised by writing a new claim "
+                        "for its key"
+                    )
                 # Older databases store whole seconds; insertion order breaks ties.
                 if (newer["created_at"], newer["rowid"]) < (
                     older["created_at"],
@@ -1277,6 +1354,17 @@ class MemoryStore:
                         "a memory can only supersede an older one; "
                         "add the content again as a new memory instead"
                     )
+                if newer["channel"] is not None:
+                    # Reads apply it, for viewers who can see the source.
+                    connection.execute(
+                        """
+                        INSERT INTO relationships (source_id, target_id, relation, created_at)
+                        VALUES (?, ?, 'supersedes', ?)
+                        ON CONFLICT(source_id, target_id, relation) DO NOTHING
+                        """,
+                        (source_id, target_id, now),
+                    )
+                    return
                 connection.execute(
                     "UPDATE memories SET archived_at = ?, updated_at = ? WHERE id = ?",
                     (now, now, target_id),
@@ -1304,14 +1392,26 @@ class MemoryStore:
         *,
         viewers: Optional[Union[str, Iterable[str]]] = None,
     ) -> Optional[Memory]:
-        """Return a memory, or ``None`` if it is missing or hidden from ``viewers``."""
-        visible, visible_parameters = self._visible(self._read_viewers(viewers))
+        """Return a memory, or ``None`` if it is missing or hidden from ``viewers``.
+
+        A channel memory's ``archived_at`` and ``superseded_by`` reflect only
+        the replacements these viewers can see.
+        """
+        viewer_ids = self._read_viewers(viewers)
+        visible, visible_parameters = self._visible(viewer_ids)
         with self._transaction(write=False) as connection:
             row = connection.execute(
                 "SELECT * FROM memories WHERE id = ?" + visible,
                 [memory_id] + visible_parameters,
             ).fetchone()
-            return self._memory_from_row(row) if row is not None else None
+            if row is None:
+                return None
+            memory = self._memory_from_row(row)
+            if memory.channel is None:
+                return memory
+            return self._as_seen(
+                memory, self._claim_view(connection, viewer_ids, only=[memory.id])
+            )
 
     def history(
         self,
@@ -1324,16 +1424,20 @@ class MemoryStore:
         Works from any version: it follows ``superseded_by`` forward to the
         current version, then collects everything that version replaced,
         directly or indirectly. With ``viewers``, a memory hidden from them
-        has no history and hidden versions are left out.
+        has no history and hidden versions are left out. A channel memory's
+        versions are the replacements these viewers can see.
         """
-        visible, visible_parameters = self._visible(self._read_viewers(viewers))
+        viewer_ids = self._read_viewers(viewers)
+        visible, visible_parameters = self._visible(viewer_ids)
         with self._transaction(write=False) as connection:
             row = connection.execute(
-                "SELECT id, superseded_by FROM memories WHERE id = ?" + visible,
+                "SELECT id, superseded_by, channel FROM memories WHERE id = ?" + visible,
                 [memory_id] + visible_parameters,
             ).fetchone()
             if row is None:
                 return []
+            if row["channel"] is not None:
+                return self._channel_history(connection, row["id"], viewer_ids)
             seen = {row["id"]}
             while row["superseded_by"] is not None and row["superseded_by"] not in seen:
                 newer = connection.execute(
@@ -1361,6 +1465,43 @@ class MemoryStore:
             ).fetchall()
             return [self._memory_from_row(version) for version in rows]
 
+    def _channel_history(
+        self,
+        connection: sqlite3.Connection,
+        memory_id: str,
+        viewers: Optional[tuple[str, ...]],
+    ) -> list[Memory]:
+        """``history`` of a channel memory, through the replacements its viewers see."""
+        view = self._claim_view(connection, viewers)
+        current, seen = memory_id, {memory_id}
+        while current in view.replaced and view.replaced[current][0] not in seen:
+            current = view.replaced[current][0]
+            seen.add(current)
+        replaced_by: dict[str, list[str]] = {}
+        for older, (newer, _) in view.replaced.items():
+            replaced_by.setdefault(newer, []).append(older)
+        versions, pending = {current}, [current]
+        while pending:
+            for older in replaced_by.get(pending.pop(), ()):
+                if older not in versions:
+                    versions.add(older)
+                    pending.append(older)
+
+        visible, visible_parameters = self._visible(viewers)
+        version_ids = sorted(versions)
+        rows = []
+        for start in range(0, len(version_ids), self._ID_CHUNK):
+            chunk = version_ids[start:start + self._ID_CHUNK]
+            rows.extend(connection.execute(
+                """
+                SELECT memories.*, memories.rowid AS row_order FROM memories
+                WHERE id IN ({}){}
+                """.format(",".join("?" for _ in chunk), visible),
+                chunk + visible_parameters,
+            ).fetchall())
+        rows.sort(key=lambda row: (row["created_at"], row["row_order"]), reverse=True)
+        return [self._as_seen(self._memory_from_row(row), view) for row in rows]
+
     def restore(self, memory_id: str) -> Memory:
         """Reactivate a memory that pruning archived.
 
@@ -1374,25 +1515,31 @@ class MemoryStore:
             ).fetchone()
             if row is None:
                 raise ValueError("memory not found: {}".format(memory_id))
-            if row["archived_at"] is None:
+            superseded_by = row["superseded_by"]
+            if row["channel"] is not None:
+                replaced = self._claim_view(
+                    connection, None, only=[memory_id]
+                ).replaced.get(memory_id)
+                superseded_by = replaced[0] if replaced is not None else None
+            if row["archived_at"] is None and superseded_by is None:
                 raise ValueError("memory is already active: {}".format(memory_id))
             if row["stale_at"] is not None:
                 raise ValueError("stale memory must be rebuilt from valid sources")
-            if row["superseded_by"] is not None:
+            if superseded_by is not None:
                 raise ValueError(
                     "memory was superseded by {} and cannot be restored".format(
-                        row["superseded_by"]
+                        superseded_by
                     )
                 )
-            if row["memory_key"] is not None:
+            # Channel claims need no check: reads decide which of them stand.
+            if row["memory_key"] is not None and row["channel"] is None:
                 holder = connection.execute(
                     """
                     SELECT id FROM memories
                     WHERE memory_key = ? AND archived_at IS NULL
-                      AND channel IS ?
-                      AND (channel IS NULL OR speaker IS ?)
+                      AND channel IS NULL
                     """,
-                    (row["memory_key"], row["channel"], row["speaker"]),
+                    (row["memory_key"],),
                 ).fetchone()
                 if holder is not None:
                     raise ValueError(
@@ -1420,22 +1567,30 @@ class MemoryStore:
         limit: int = 100,
         viewers: Optional[Union[str, Iterable[str]]] = None,
     ) -> list[Memory]:
-        """The most recently updated memories, only visible ones with ``viewers``."""
+        """The most recently updated memories, only visible ones with ``viewers``.
+
+        A channel memory replaced in the viewers' view counts as archived,
+        updated when it was replaced.
+        """
         if limit < 1:
             raise ValueError("limit must be positive")
-        visible, visible_parameters = self._visible(self._read_viewers(viewers))
+        viewer_ids = self._read_viewers(viewers)
+        visible, visible_parameters = self._visible(viewer_ids)
         clause = "1" if include_archived else "archived_at IS NULL"
         with self._transaction(write=False) as connection:
             rows = connection.execute(
-                """
-                SELECT * FROM memories
-                WHERE {}{}
-                ORDER BY updated_at DESC, id
-                LIMIT ?
-                """.format(clause, visible),
-                visible_parameters + [limit],
+                "SELECT * FROM memories WHERE {}{}".format(clause, visible),
+                visible_parameters,
             ).fetchall()
-            return [self._memory_from_row(row) for row in rows]
+            view = self._claim_view(connection, viewer_ids)
+        memories = [
+            self._as_seen(self._memory_from_row(row), view)
+            for row in rows
+            if include_archived or row["id"] not in view.replaced
+        ]
+        memories.sort(key=lambda memory: memory.id)
+        memories.sort(key=lambda memory: memory.updated_at, reverse=True)
+        return memories[:limit]
 
     def search(
         self,
@@ -1458,7 +1613,9 @@ class MemoryStore:
         in channels that every viewer currently belongs to. Hidden memories are
         left out before ranking, not after it, so they change no score, add no
         graph neighbour and appear in no link. A memory without a channel is
-        hidden from every viewer.
+        hidden from every viewer. Channel claims are resolved from the
+        memories these viewers may use, so a replacement or contradiction they
+        cannot see does not affect what they read.
         """
         if not query or not query.strip():
             raise ValueError("query must not be empty")
@@ -1482,6 +1639,7 @@ class MemoryStore:
             return []
 
         with self._transaction(write=record_access) as connection:
+            view = self._claim_view(connection, viewer_ids)
             sql = "SELECT * FROM memories WHERE archived_at IS NULL" + visible
             parameters = list(visible_parameters)
             if kind_value is not None:
@@ -1490,6 +1648,7 @@ class MemoryStore:
             active_memories = {
                 row["id"]: self._memory_from_row(row)
                 for row in connection.execute(sql, parameters).fetchall()
+                if row["id"] not in view.replaced
             }
             if not active_memories:
                 return []
@@ -1517,7 +1676,7 @@ class MemoryStore:
                 memory_id: score / maximum_direct_score
                 for memory_id, score in direct_scores.items()
             }
-            seed_links = self._search_links(connection, seed_scores, viewer_ids)
+            seed_links = self._search_links(connection, seed_scores, viewer_ids, view)
             graph_scores = {}
             for link in seed_links:
                 for seed_id, neighbor_id in (
@@ -1558,7 +1717,7 @@ class MemoryStore:
                     )
 
             links_by_memory = {memory_id: set() for memory_id in ranked_ids}
-            result_links = self._search_links(connection, ranked_ids, viewer_ids)
+            result_links = self._search_links(connection, ranked_ids, viewer_ids, view)
             active_disputants = self._active_ids(
                 connection,
                 {
@@ -1569,6 +1728,7 @@ class MemoryStore:
                     if end not in links_by_memory
                 },
                 viewer_ids,
+                view,
             )
             for link in result_links:
                 for memory_id, other_id in (
@@ -1595,7 +1755,6 @@ class MemoryStore:
                     ):
                         links_by_memory[memory_id].add(link)
 
-            claim_statuses = self._claim_statuses(connection, viewer_ids)
             results = []
             for memory_id in ranked_ids:
                 memory = active_memories[memory_id]
@@ -1634,51 +1793,192 @@ class MemoryStore:
                         lexical_score=lexical_scores.get(memory_id, 0.0),
                         vector_score=vector_scores.get(memory_id, 0.0),
                         coverage=coverage.get(memory_id, 0.0),
-                        claim_status=claim_statuses.get(memory_id, "current"),
+                        claim_status=view.statuses.get(memory_id, "current"),
                     )
                 )
             return results
 
-    def _claim_statuses(
-        self, connection: sqlite3.Connection,
-        viewers: Optional[tuple[str, ...]],
+    _CLAIM_COLUMNS = (
+        "id, channel, memory_key, speaker, content, asserted_as_admin, "
+        "asserted_as_delegate, fact_subject, archived_at, created_at"
+    )
+
+    @staticmethod
+    def _claim_text(claim: Union[sqlite3.Row, Mapping[str, object]]) -> str:
+        return claim["content"].strip().casefold()
+
+    @classmethod
+    def _replay(
+        cls, claims: Sequence[Union[sqlite3.Row, Mapping[str, object]]]
+    ) -> tuple[dict[str, tuple[str, str]], list, list[Link]]:
+        """Apply rule 2 to one channel key's claims in the order they were written.
+
+        Each claim replaces its speaker's earlier claims. A claim with
+        authority (rank above 0) also replaces every claim of equal or lower
+        rank, if it outranks all other standing claims or ties them while
+        restating its speaker's standing claim. A standing claim with
+        different text is linked to it as a contradiction. Pruned claims take
+        part like any other; the caller decides which claims to pass.
+
+        Returns what was replaced (by which claim, when), the claims still
+        standing, and the contradiction links.
+        """
+        replaced: dict[str, tuple[str, str]] = {}
+        conflicts: list[Link] = []
+        heads: list = []
+        for claim in claims:
+            rank = cls._claim_rank(claim)
+            speaker = claim["speaker"]
+            other_max = max(
+                (cls._claim_rank(head) for head in heads if head["speaker"] != speaker),
+                default=-1,
+            )
+            restatement = any(
+                head["speaker"] == speaker and cls._claim_rank(head) == rank
+                for head in heads
+            )
+            resolve_all = rank > 0 and (
+                rank > other_max or (rank == other_max and restatement)
+            )
+            standing = []
+            for head in heads:
+                if head["speaker"] == speaker or (
+                    resolve_all and cls._claim_rank(head) <= rank
+                ):
+                    replaced[head["id"]] = (claim["id"], claim["created_at"])
+                else:
+                    standing.append(head)
+                    if cls._claim_text(head) != cls._claim_text(claim):
+                        conflicts.append(
+                            Link(claim["id"], head["id"], Relationship.CONTRADICTS)
+                        )
+            heads = standing + [claim]
+        return replaced, heads, conflicts
+
+    @classmethod
+    def _label_claims(
+        cls, claims: Sequence[Union[sqlite3.Row, Mapping[str, object]]]
     ) -> dict[str, str]:
-        """Classify active keyed claims using all visible kinds in each channel."""
-        visible, parameters = self._visible(viewers)
+        """``current``, ``disputed``, ``agrees`` or ``overruled`` for standing claims."""
+        if not claims:
+            return {}
+        values = {cls._claim_text(claim) for claim in claims}
+        max_rank = max(cls._claim_rank(claim) for claim in claims)
+        authority_values = {
+            cls._claim_text(claim) for claim in claims
+            if cls._claim_rank(claim) == max_rank
+        }
+        statuses = {}
+        for claim in claims:
+            if max_rank > 0 and len(authority_values) == 1:
+                if cls._claim_rank(claim) == max_rank:
+                    status = "current"
+                elif cls._claim_text(claim) in authority_values:
+                    status = "agrees"
+                else:
+                    status = "overruled"
+            elif len(values) == 1:
+                status = "current"
+            else:
+                status = "disputed"
+            statuses[claim["id"]] = status
+        return statuses
+
+    def _claim_view(
+        self,
+        connection: sqlite3.Connection,
+        viewers: Optional[tuple[str, ...]],
+        *,
+        only: Optional[Iterable[str]] = None,
+    ) -> _ClaimView:
+        """Resolve channel memories from the memories one read may use.
+
+        Only memories visible to ``viewers`` and not stale take part (without
+        viewers: every memory that is not stale). Each channel key's claims
+        are replayed with rule 2 (``_replay``), and a stored ``supersedes``
+        link between channel memories replaces its target. A write the
+        viewers cannot see, or one whose source was retracted, therefore
+        replaces nothing for them, and what it replaced stands again.
+
+        ``only`` limits the work to the keys of, and supersessions into, the
+        given memories.
+        """
+        visible, visible_parameters = self._visible(viewers)
+        claim_filter, claim_parameters = "", []
+        edge_filter, edge_parameters = "", []
+        if only is not None:
+            only = list(only)
+            placeholders = ",".join("?" for _ in only)
+            keys = connection.execute(
+                """
+                SELECT DISTINCT channel, memory_key FROM memories
+                WHERE id IN ({}) AND channel IS NOT NULL AND memory_key IS NOT NULL
+                """.format(placeholders),
+                only,
+            ).fetchall()
+            claim_filter = " AND ({})".format(
+                " OR ".join(
+                    "(memories.channel = ? AND memories.memory_key = ?)" for _ in keys
+                ) or "0"
+            )
+            for key in keys:
+                claim_parameters.extend((key["channel"], key["memory_key"]))
+            edge_filter = " AND relationships.target_id IN ({})".format(placeholders)
+            edge_parameters = only
+
         groups: dict[tuple[str, str], list[sqlite3.Row]] = {}
         for row in connection.execute(
             """
-            SELECT id, channel, memory_key, speaker, content,
-                   asserted_as_admin, asserted_as_delegate, fact_subject FROM memories
-            WHERE archived_at IS NULL AND channel IS NOT NULL
-              AND memory_key IS NOT NULL{}
-            """.format(visible),
-            parameters,
+            SELECT {} FROM memories
+            WHERE channel IS NOT NULL AND memory_key IS NOT NULL{}{}
+            ORDER BY created_at, rowid
+            """.format(self._CLAIM_COLUMNS, claim_filter, visible),
+            claim_parameters + visible_parameters,
         ):
             groups.setdefault((row["channel"], row["memory_key"]), []).append(row)
-        statuses = {}
+        replaced: dict[str, tuple[str, str]] = {}
+        statuses: dict[str, str] = {}
+        conflicts: list[Link] = []
         for claims in groups.values():
-            values = {claim["content"].strip().casefold() for claim in claims}
-            max_rank = max(self._claim_rank(claim) for claim in claims)
-            authority_values = {
-                claim["content"].strip().casefold() for claim in claims
-                if self._claim_rank(claim) == max_rank
-            }
-            for claim in claims:
-                value = claim["content"].strip().casefold()
-                if max_rank > 0 and len(authority_values) == 1:
-                    if self._claim_rank(claim) == max_rank:
-                        status = "current"
-                    elif value in authority_values:
-                        status = "agrees"
-                    else:
-                        status = "overruled"
-                elif len(values) == 1:
-                    status = "current"
-                else:
-                    status = "disputed"
-                statuses[claim["id"]] = status
-        return statuses
+            group_replaced, standing, group_conflicts = self._replay(claims)
+            replaced.update(group_replaced)
+            conflicts.extend(group_conflicts)
+            statuses.update(
+                self._label_claims([c for c in standing if c["archived_at"] is None])
+            )
+
+        both_ends = "".join(
+            " AND EXISTS (SELECT 1 FROM memories WHERE memories.id = "
+            "relationships.{} AND memories.channel IS NOT NULL{})".format(end, visible)
+            for end in ("source_id", "target_id")
+        )
+        for edge in connection.execute(
+            """
+            SELECT source_id, target_id, created_at FROM relationships
+            WHERE relation = 'supersedes'{}{}
+            ORDER BY created_at, source_id
+            """.format(edge_filter, both_ends),
+            edge_parameters + visible_parameters * 2,
+        ):
+            replaced[edge["target_id"]] = (edge["source_id"], edge["created_at"])
+        return _ClaimView(replaced, statuses, tuple(conflicts))
+
+    @staticmethod
+    def _as_seen(memory: Memory, view: _ClaimView) -> Memory:
+        """A memory with the replacement this view gives it, as a write once stored it."""
+        replacement = view.replaced.get(memory.id)
+        if replacement is None:
+            return memory
+        replacer, replaced_at = replacement
+        return replace(
+            memory,
+            superseded_by=replacer,
+            archived_at=(
+                replaced_at if memory.archived_at is None
+                else min(memory.archived_at, replaced_at)
+            ),
+            updated_at=max(memory.updated_at, replaced_at),
+        )
 
     def _lexical_scores(
         self, memories: Mapping[str, Memory], query_tokens: Sequence[str]
@@ -1797,9 +2097,10 @@ class MemoryStore:
         self,
         connection: sqlite3.Connection,
         memory_ids: Iterable[str],
-        viewers: Optional[tuple[str, ...]] = None,
+        viewers: Optional[tuple[str, ...]],
+        view: _ClaimView,
     ) -> set[str]:
-        memory_ids = list(memory_ids)
+        memory_ids = [i for i in memory_ids if i not in view.replaced]
         visible, visible_parameters = self._visible(viewers)
         active = set()
         for start in range(0, len(memory_ids), self._ID_CHUNK):
@@ -1821,48 +2122,78 @@ class MemoryStore:
         self,
         connection: sqlite3.Connection,
         memory_ids: Iterable[str],
-        viewers: Optional[tuple[str, ...]] = None,
+        viewers: Optional[tuple[str, ...]],
+        view: _ClaimView,
     ) -> list[Link]:
         """Links touching the given memories, as search should see them.
 
-        With ``topic`` carryover, a link to an earlier version of a fact counts
-        as a link to its current version. With ``viewers``, a link counts only
-        if both of its ends are visible, and so does every version it is
-        followed through.
+        These are the stored links and the contradictions between differing
+        claims of one channel key in ``view``. With ``topic`` carryover, a
+        link to an earlier version of a fact counts as a link to its current
+        version. Channel memories are replaced only at read time, so ``copy``
+        carries their links the same way, through the replacements in
+        ``view``; it copied unchannelled links when they were replaced. With
+        ``viewers``, a link counts only if both of its ends are visible, and
+        so does every version it is followed through.
         """
         memory_ids = list(memory_ids)
-        if self.link_carryover is not LinkCarryover.TOPIC:
-            return self._without_resolved_contradictions(
-                connection, self._links_touching(connection, memory_ids, viewers)
-            )
-        links = self._links_touching(
-            connection,
-            memory_ids
-            + sorted(self._earlier_versions(connection, memory_ids, viewers)),
-            viewers,
+        stored_topic = self.link_carryover is LinkCarryover.TOPIC
+        channel_topic = self.link_carryover is not LinkCarryover.KEEP
+        replaced_by: dict[str, list[str]] = {}
+        if channel_topic:
+            for older, (newer, _) in view.replaced.items():
+                replaced_by.setdefault(newer, []).append(older)
+
+        lookup = list(memory_ids)
+        if stored_topic:
+            lookup += sorted(self._earlier_versions(connection, memory_ids, viewers))
+        if channel_topic:
+            earlier, pending = set(), list(memory_ids)
+            while pending:
+                for older in replaced_by.get(pending.pop(), ()):
+                    if older not in earlier:
+                        earlier.add(older)
+                        pending.append(older)
+            lookup += sorted(earlier - set(lookup))
+        touched = set(lookup)
+        links = set(self._links_touching(connection, lookup, viewers))
+        links.update(
+            link for link in view.conflicts
+            if link.source_id in touched or link.target_id in touched
         )
-        current = self._current_versions(
-            connection,
-            {end for link in links for end in (link.source_id, link.target_id)},
-            viewers,
-        )
-        resolved = set()
-        for link in links:
-            # A version's own supersedes link resolves to a self-link and drops out.
-            source_id = current.get(link.source_id, link.source_id)
-            target_id = current.get(link.target_id, link.target_id)
-            if source_id != target_id:
-                resolved.add(Link(source_id, target_id, link.relation))
+
+        if stored_topic or channel_topic:
+            ends = {end for link in links for end in (link.source_id, link.target_id)}
+            current = {}
+            if stored_topic:
+                current.update(self._current_versions(connection, ends, viewers))
+            if channel_topic:
+                for end in ends:
+                    newest, seen = end, {end}
+                    while newest in view.replaced and view.replaced[newest][0] not in seen:
+                        newest = view.replaced[newest][0]
+                        seen.add(newest)
+                    if newest != end:
+                        current[end] = newest
+            resolved = set()
+            for link in links:
+                # A version's own supersedes link resolves to a self-link and drops out.
+                source_id = current.get(link.source_id, link.source_id)
+                target_id = current.get(link.target_id, link.target_id)
+                if source_id != target_id:
+                    resolved.add(Link(source_id, target_id, link.relation))
+            links = resolved
         return self._without_resolved_contradictions(
             connection,
             sorted(
-                resolved,
+                links,
                 key=lambda link: (link.source_id, link.target_id, link.relation.value),
             ),
+            view,
         )
 
     def _without_resolved_contradictions(
-        self, connection: sqlite3.Connection, links: Sequence[Link]
+        self, connection: sqlite3.Connection, links: Sequence[Link], view: _ClaimView
     ) -> list[Link]:
         """A carried contradiction no longer applies when current claims agree."""
         ends = {
@@ -1887,6 +2218,7 @@ class MemoryStore:
                     """.format(placeholders),
                     chunk,
                 )
+                if row["id"] not in view.replaced
             )
         return [
             link
@@ -2141,10 +2473,14 @@ class MemoryStore:
         candidates = []
 
         with self._transaction(write=not dry_run) as connection:
+            replaced = self._claim_view(connection, None).replaced
             rows = connection.execute(
                 "SELECT * FROM memories WHERE archived_at IS NULL"
             ).fetchall()
             for row in rows:
+                if row["id"] in replaced:
+                    # Already history, as a write-time replacement would have archived it.
+                    continue
                 memory = self._memory_from_row(row)
                 if protect_importance is not None and memory.importance >= protect_importance:
                     continue

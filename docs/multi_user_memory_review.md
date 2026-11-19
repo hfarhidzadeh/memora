@@ -737,6 +737,107 @@ derivations must explicitly carry forward the complete raw-message source list
 and parent audience constraints; source text is not checked against derived
 content.
 
+**Read-time claim resolution, 2026-11-18.** A review of the slices above found
+two failures, both caused by resolving claims when they were written, against
+every claim in the channel:
+
+- **Narrower sources.** A claim whose source message was in a narrower channel
+  (a direct message) replaced or resolved claims that the rest of the channel
+  could see. Those viewers saw their claim disappear, and `get_memory` showed
+  them the hidden claim's ID in `superseded_by`. Source lineage had reopened
+  the fifth path that per-channel keys closed (see **Keys** below).
+- **Retraction.** Retracting the message behind a correction or an admin's
+  resolution left the key with no current value, because the claims it had
+  replaced stayed replaced.
+
+Channel memories are now never archived or superseded on write. Each read
+replays rule 2, in write order, over the claims it may use: visible to its
+viewers and not stale. It applies a stored `supersedes` link between channel
+memories only if the link's source is among them. Claim statuses, `contradicts`
+links between claims of one key, `superseded_by`, `history` and link carry-over
+all come from that replay. A hidden or retracted write therefore changes
+nothing a viewer reads, and whatever a retracted claim replaced stands again.
+Memories without a channel keep write-time replacement, so the single-user
+results are unaffected. Schema version 6 undoes stored supersessions of
+channel memories.
+
+Side effects:
+
+- `relate(..., supersedes)` can no longer target a keyed channel claim.
+- Pruning skips replaced claims, as it skipped archived ones before.
+- A pruned claim still takes part in the replay.
+
+The noninterference experiment's model now predicts the new refusal.
+
+Tests are in [test_claim_resolution.py](../tests/test_claim_resolution.py):
+
+- 8 regression tests, which failed before the change;
+- 4 controls, which passed before it;
+- 4 tests of the new behaviour.
+
+Twelve deliberate faults in the new code were each caught by these tests.
+None of this is yet covered by a many-trial experiment. One write-side signal
+remains: a write that would change a key's scope or personal subject is
+refused after checking the key's whole history, so the refusal can reveal to
+the writer that a claim they cannot see exists.
+
+**Noninterference experiment, version 2, 2026-11-18.** Script:
+[audience_noninterference.py](../experiments/audience_noninterference.py).
+Run 2 results: [current store](../experiments/results/audience_noninterference.md)
+and [store before read-time resolution](../experiments/results/audience_noninterference_before_fix.md).
+Run 1 results are in
+[noninterference_v2_run1_superseded](../experiments/results/noninterference_v2_run1_superseded/).
+
+- **Additions over version 1:**
+  - source messages;
+  - hidden "narrow" writes, in a channel the viewers see but drawn from a
+    channel they cannot see;
+  - one admin, who writes only hidden memories;
+  - narrow `supersedes` links onto visible memories;
+  - retractions, hidden and visible;
+  - a seventh rule: after the viewers' retractions, reads must equal those of
+    a world N where the retracted memories were never written.
+
+  The decision rule, a prediction and a validation criterion were fixed
+  before any run. Version 1 was never run for results.
+- **Validation (positive control):** the same script was run against the
+  store before read-time resolution (commit c7bb390, 500 pairs). Rule 5 or 6
+  failed in 386 pairs (77%) and rule 7 in 403 (81%), above the 25% fixed in
+  advance. So the extension detects both faults found in review.
+- **Run 1, current store (500 pairs):**
+  - Controls held in every pair, as did soundness: no read with viewers ever
+    showed or linked to a hidden memory.
+  - Rules 4, 5 and 7 failed: rule 4 in 191 pairs, rules 5 and 7 in the same
+    70 pairs, all within the 191.
+  - Every failing pair had a visible `relate` whose outcome depended on hidden
+    memories (383 operations). In each, a hidden narrow write had replaced one
+    end in the administrative view. `relate` checks that both ends are active
+    in that view, so it refused (or refused for a different reason), and in
+    70 pairs the missing link reached the viewers' search results.
+  - The 309 pairs without such an operation held all seven rules.
+  - This was the prediction recorded before running. The administrative
+    model predicted every hidden outcome (0 of 38,699 differed).
+- **Change after run 1:** the researcher chose that `relate` check only its
+  two memories (exist, not archived, not retracted), not whether a channel
+  memory is replaced, which reads decide. Two regression tests failed before
+  the change and pass after it, and a control passes in both. The
+  experiment's model follows the new rule. Its scripts, reads, visible
+  predictions and decision rule are unchanged.
+- **Run 2 (500 pairs, the same script for both stores):**
+  - Current store: all seven rules held in every pair ("the built read path
+    passes"), as predicted before the run. No visible outcome depended on
+    hidden memories. The model predicted every hidden outcome.
+  - This held although hidden activity replaced a visible memory in the
+    administrative view in 377 pairs (75%), and a visible retraction removed
+    a memory that had replaced another in 306 (61%).
+  - Store before read-time resolution: rules 4 to 7 failed at the same rates
+    as in run 1. Rule 5 or 6 failed in 77% of pairs and rule 7 in 81%, so the
+    validation still holds.
+- **Limits:** synthetic scripts written alongside the code, so a pass shows
+  the mechanism holds on these scripts, not on every database. Not exercised:
+  delegation, personal facts, pruning, `restore` and bound writers. The only
+  admin writes only hidden memories.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every
@@ -744,7 +845,9 @@ content.
   every version it is followed through.
 - **Keys:** a key now belongs to its channel, and a memory can only supersede
   one in its own channel. Otherwise a write in a hidden channel could replace
-  a memory the viewer can see, which is a fifth path not listed above.
+  a memory the viewer can see, which is a fifth path not listed above. Once
+  memories could cite source messages from other channels, per-channel keys no
+  longer closed it on their own; read-time claim resolution (above) does.
 - **Tests:** paths 2 to 4, the fused lexical and vector ranking, joiners and
   leavers are covered by unit tests in
   [test_audience.py](../tests/test_audience.py), each with a positive control
@@ -777,8 +880,8 @@ and admin records plus keyed contradiction links are now built):
   a supersession, unless that speaker is an admin or the person a personal key
   is about.
 
-Rule 3 needs `derivation_sources` only once Memora gains LLM consolidation; it
-has none today.
+Rule 3's source lists are built as `memory_sources` (2026-11-18, above). They
+are supplied by the caller; Memora still has no LLM consolidation of its own.
 
 ---
 

@@ -1,0 +1,320 @@
+{
+  "trials": 500,
+  "settings": {
+    "vocabulary": 60,
+    "words_per_memory": [
+      3,
+      10
+    ],
+    "keys": 6,
+    "key_share": 0.3,
+    "visible_operations": [
+      20,
+      60
+    ],
+    "visible_add": 0.7,
+    "hidden_operations": [
+      10,
+      60
+    ],
+    "hidden_add": 0.55,
+    "hidden_relate": 0.35,
+    "no_channel": 0.1,
+    "cross_supersedes": 0.05,
+    "hidden_partner": 0.5,
+    "admins": [
+      "cy"
+    ],
+    "sourced_share": 0.8,
+    "narrow_share": 0.3,
+    "hidden_retract": 0.05,
+    "narrow_supersede": 0.1,
+    "visible_retractions": [
+      1,
+      3
+    ],
+    "retract_replacer": 0.5,
+    "others_join": 0.5,
+    "churn": 0.5,
+    "searches": 6,
+    "query_words": [
+      1,
+      3
+    ],
+    "kind_filter": 0.3,
+    "limits": [
+      1,
+      3,
+      10,
+      1000
+    ],
+    "list_limit": 1000,
+    "big": 10000
+  },
+  "store_schema_version": 6,
+  "summary": {
+    "checks": {
+      "determinism": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "sensitivity": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "power": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "noninterference": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "exactness": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "soundness": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "retraction": {
+        "held": 500,
+        "not_held_seeds": []
+      }
+    },
+    "first_search_differs": 500,
+    "model_predicts_visible_outcomes": 500,
+    "pairs": {
+      "viewers ana": 254,
+      "viewers ana and ben": 246,
+      "churn": 263,
+      "keep": 169,
+      "copy": 160,
+      "topic": 171,
+      "no embedder": 242,
+      "n-gram embedder": 258
+    },
+    "attribution": {
+      "after-naive": {
+        "all": {
+          "pairs": 500,
+          "any": 500,
+          "result set": 486,
+          "order": 339,
+          "count": 476,
+          "score": 488,
+          "lexical_score": 497,
+          "coverage": 478,
+          "vector_score": 0,
+          "matched_by": 215,
+          "links": 426,
+          "claim_status": 136
+        },
+        "keep": {
+          "pairs": 169,
+          "any": 169,
+          "result set": 166,
+          "order": 116,
+          "count": 163,
+          "score": 165,
+          "lexical_score": 168,
+          "coverage": 162,
+          "vector_score": 0,
+          "matched_by": 76,
+          "links": 147,
+          "claim_status": 49
+        },
+        "copy": {
+          "pairs": 160,
+          "any": 160,
+          "result set": 154,
+          "order": 107,
+          "count": 152,
+          "score": 158,
+          "lexical_score": 159,
+          "coverage": 153,
+          "vector_score": 0,
+          "matched_by": 67,
+          "links": 136,
+          "claim_status": 40
+        },
+        "topic": {
+          "pairs": 171,
+          "any": 171,
+          "result set": 166,
+          "order": 116,
+          "count": 161,
+          "score": 165,
+          "lexical_score": 170,
+          "coverage": 163,
+          "vector_score": 0,
+          "matched_by": 72,
+          "links": 143,
+          "claim_status": 47
+        },
+        "no embedder": {
+          "pairs": 242,
+          "any": 242,
+          "result set": 235,
+          "order": 154,
+          "count": 226,
+          "score": 231,
+          "lexical_score": 239,
+          "coverage": 230,
+          "vector_score": 0,
+          "matched_by": 76,
+          "links": 202,
+          "claim_status": 59
+        },
+        "n-gram embedder": {
+          "pairs": 258,
+          "any": 258,
+          "result set": 251,
+          "order": 185,
+          "count": 250,
+          "score": 257,
+          "lexical_score": 258,
+          "coverage": 248,
+          "vector_score": 0,
+          "matched_by": 139,
+          "links": 224,
+          "claim_status": 77
+        }
+      },
+      "after-careful": {
+        "all": {
+          "pairs": 500,
+          "any": 500,
+          "result set": 445,
+          "order": 381,
+          "count": 342,
+          "score": 497,
+          "lexical_score": 500,
+          "coverage": 492,
+          "vector_score": 0,
+          "matched_by": 263,
+          "links": 246,
+          "claim_status": 156
+        },
+        "keep": {
+          "pairs": 169,
+          "any": 169,
+          "result set": 154,
+          "order": 130,
+          "count": 112,
+          "score": 167,
+          "lexical_score": 169,
+          "coverage": 167,
+          "vector_score": 0,
+          "matched_by": 91,
+          "links": 78,
+          "claim_status": 55
+        },
+        "copy": {
+          "pairs": 160,
+          "any": 160,
+          "result set": 141,
+          "order": 126,
+          "count": 114,
+          "score": 160,
+          "lexical_score": 160,
+          "coverage": 157,
+          "vector_score": 0,
+          "matched_by": 86,
+          "links": 81,
+          "claim_status": 46
+        },
+        "topic": {
+          "pairs": 171,
+          "any": 171,
+          "result set": 150,
+          "order": 125,
+          "count": 116,
+          "score": 170,
+          "lexical_score": 171,
+          "coverage": 168,
+          "vector_score": 0,
+          "matched_by": 86,
+          "links": 87,
+          "claim_status": 55
+        },
+        "no embedder": {
+          "pairs": 242,
+          "any": 242,
+          "result set": 216,
+          "order": 170,
+          "count": 169,
+          "score": 240,
+          "lexical_score": 242,
+          "coverage": 237,
+          "vector_score": 0,
+          "matched_by": 95,
+          "links": 116,
+          "claim_status": 67
+        },
+        "n-gram embedder": {
+          "pairs": 258,
+          "any": 258,
+          "result set": 229,
+          "order": 211,
+          "count": 173,
+          "score": 257,
+          "lexical_score": 258,
+          "coverage": 255,
+          "vector_score": 0,
+          "matched_by": 168,
+          "links": 130,
+          "claim_status": 89
+        }
+      }
+    },
+    "operations": {
+      "visible": 20543,
+      "visible_refused": 966,
+      "hidden": 38699,
+      "hidden_unpredicted": 0,
+      "cross_channel_attempted": 567,
+      "cross_channel_issued": 370,
+      "cross_channel_refused": 370,
+      "narrow_adds": 5249,
+      "narrow_supersedes_issued": 1646,
+      "narrow_supersedes_accepted": 735,
+      "hidden_retractions": 1647,
+      "visible_retractions": 1004,
+      "retractions_of_replacers": 406,
+      "replaced_in_admin_view": 830,
+      "visible_dependent": 0,
+      "visible_dependent_went_administrative": 0,
+      "visible_dependent_went_visible": 0,
+      "hidden_outcomes": {
+        "add: ok": 19339,
+        "member: ok": 3530,
+        "relate: ok": 7409,
+        "relate: refused: keyed claim": 24,
+        "relate: refused: not active": 1333,
+        "relate: refused: older": 753,
+        "relate: refused: other channel": 319,
+        "relate: refused: other key": 15,
+        "relate: refused: other speaker": 83,
+        "relate: skipped: archived": 243,
+        "relate: skipped: not written yet": 4004,
+        "retract: ok": 1647
+      },
+      "pairs_with_admin_replacement": 377,
+      "pairs_retracting_a_replacer": 306,
+      "pairs_with_dependent_visible_outcome": 0
+    },
+    "failures": {}
+  },
+  "decision": {
+    "rule_1_determinism": true,
+    "rule_2_sensitivity": true,
+    "rule_3_power": true,
+    "rule_4_noninterference": true,
+    "rule_5_exactness": true,
+    "rule_6_soundness": true,
+    "rule_7_retraction": true,
+    "verdict": "the built read path passes"
+  }
+}
