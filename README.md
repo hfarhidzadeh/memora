@@ -586,7 +586,9 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 
 1. Detect updates automatically (for example with a local contradiction or
    similarity model) and measure how much of the oracle's gain on LongMemEval
-   it recovers.
+   it recovers. The incomplete Qwen run is
+   [archived as a failed diagnostic](experiments/results/failed_update_detection_qwen2.5-coder-1.5b/README.md),
+   not evidence of detector effectiveness.
 2. Keep old versions findable: rank them lower instead of archiving them, or
    search history for questions about the past, and measure both question
    groups.

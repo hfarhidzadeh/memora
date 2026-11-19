@@ -1,0 +1,70 @@
+{
+  "status": "incomplete_failed_diagnostic_not_an_efficacy_result",
+  "review_date": "2026-11-19",
+  "model": "qwen2.5-coder:1.5b",
+  "original_path": "experiments/results/update_detection_judgments_qwen2.5-coder-1.5b.jsonl",
+  "archive_file": "update_detection_judgments_qwen2.5-coder-1.5b.jsonl",
+  "sha256": "9d0177d53cb7a745fb0c42868c13fb2a8464ee88b3fd2df91efc5e0957ead836",
+  "cached_responses": 518,
+  "unique_cache_keys": 518,
+  "question_ids_represented": 28,
+  "planned_questions": 65,
+  "answers": {
+    "NO": 188,
+    "YES": 330
+  },
+  "by_original_cache_label": {
+    "evidence": {
+      "cached_responses": 140,
+      "yes": 110,
+      "no": 30,
+      "yes_rate": 0.7857142857142857
+    },
+    "control": {
+      "cached_responses": 324,
+      "yes": 192,
+      "no": 132,
+      "yes_rate": 0.5925925925925926
+    },
+    "random": {
+      "cached_responses": 54,
+      "yes": 28,
+      "no": 26,
+      "yes_rate": 0.5185185185185185
+    }
+  },
+  "recorded_model_seconds": 34481.74,
+  "prompt_key_verification": "All 518 keys match model name and current build_prompt over the historical suite pair texts.",
+  "decision": "Preserve archive; exclude from accepted results and default resume cache; do not complete this configuration for an efficacy claim.",
+  "limitations": [
+    "Cache records are unique model calls, not necessarily all judged-pair occurrences; repeated prompts are deduplicated.",
+    "Partial-run descriptive counts only; no full-run retrieval, recovery, or harm estimates.",
+    "No process error log establishes why the run stopped."
+  ],
+  "offline_design_replay": {
+    "model_calls": 0,
+    "matched_unique_cache_keys": 518,
+    "planned_pair_occurrences": 1235,
+    "cached_pair_occurrences": 527,
+    "missing_pair_occurrences": 708,
+    "by_kind": {
+      "evidence": {
+        "yes": 116,
+        "no": 31,
+        "missing": 178
+      },
+      "control": {
+        "yes": 192,
+        "no": 134,
+        "missing": 454
+      },
+      "random": {
+        "yes": 28,
+        "no": 26,
+        "missing": 76
+      }
+    },
+    "best_possible_full_run_random_yes_rate": 0.2153846153846154,
+    "conclusion": "With the historical suite, current prompt and design fixed, completing all remaining pairs cannot meet the 10% random-pair YES limit."
+  }
+}

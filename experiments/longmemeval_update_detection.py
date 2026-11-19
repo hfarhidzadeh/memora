@@ -60,7 +60,11 @@ the other candidates count as false positives, so false-positive rates are upper
 bounds. Updates come from a model the benchmark does not know, so some YES
 decisions on non-oracle pairs may be correct.
 
-Status: the full run has not been completed, so no results are published yet.
+Status: the full run was not completed. Its 518 cached responses are archived
+in results/failed_update_detection_qwen2.5-coder-1.5b/ with a diagnostic summary.
+The partial cache fails the random-pair validity check; do not resume it as an
+accepted evaluation. The labels/conversion also need the corrections described
+in docs/longmemeval_label_review.md. No detector-effectiveness result is established.
 
 Run from the project root (Ollama must be serving the model):
 
@@ -416,6 +420,8 @@ def main():
 
     current, costed = group[("current",)], group[("previous", "both")]
     report = {
+        "result_status": "provisional_pending_label_and_conversion_corrections",
+        "label_review": "docs/longmemeval_label_review.md",
         "model": args.model,
         "questions": {"current": len(current), "previous_both": len(costed)},
         "candidate_recall": candidate_recall,
