@@ -36,6 +36,9 @@ This is a research prototype, not a production multi-agent or LLM platform. It
 does not call an LLM or extract entities automatically, and links are written
 explicitly. Pruning archives records rather than permanently deleting them.
 
+For how the code is organised, what the database holds and what each read and
+write does, see [docs/architecture.md](docs/architecture.md).
+
 ## Requirements
 
 Python 3.9 or newer.
