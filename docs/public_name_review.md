@@ -1,8 +1,13 @@
 # Public name review — 2026-11-19
 
-**Decision: choose another public name before release.** “Memora” has an
+**Decision: rename this project to Memvane (repository/package/CLI: `memvane`).**
+The owner selected this name on 2026-11-19. Initial exact-name web searches,
+including GitHub, arXiv, and PyPI queries, found no obvious published memory
+system or software package named Memvane; this is a preliminary collision check.
+
+The former name “Memora” has an
 exact-name collision with published work in agent memory, including work
-evaluated on LongMemEval. Treat the repository's current name as a working name.
+evaluated on LongMemEval.
 
 Primary sources checked:
 
@@ -12,11 +17,11 @@ Primary sources checked:
 | Memora benchmark, introduced in *From Recall to Forgetting: Benchmarking Long-Term Memory for Personalized Agents*, Uddin et al. | [ACL Findings 2026 publication](https://aclanthology.org/2026.findings-acl.1337/), July 2026; [authors' repository](https://github.com/geniesinc/Memora) | A second exact-name use in long-term memory evaluation. |
 
 This establishes a research/software naming collision. A different package
-suffix, such as the existing `memora-agent-memory`, would still leave the paper
+suffix, such as the former `memora-agent-memory`, would still leave the paper
 title, README, and `memora` command ambiguous.
 
-Before public sharing, select and check a replacement name, then update the
-README/title, package metadata, CLI name/help/examples, and experiment prose.
-Preserve historical provenance when describing old runs. The internal Python
-module is already `dynmemory`; retaining it does not require choosing that as
-the public brand. No replacement name has been selected or cleared by this review.
+The rename updates the README/title, package metadata, CLI name/help/examples,
+and current experiment code. Existing result reports retain Memora as the name
+used for those historical runs; published systems cited above also retain their
+names. The Python module remains `dynmemory`, and the default database filename
+remains `.memora.sqlite3` so an upgrade continues to open the existing store.

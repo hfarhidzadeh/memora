@@ -1,7 +1,7 @@
 """Graph hop, contradiction flags and topic carry-over: do links reveal hidden memories?
 
 Question (paths 2 to 4 of section 8 of docs/multi_user_memory_review.md).
-Suppose per-user visibility were added to Memora by dropping hidden memories
+Suppose per-user visibility were added to Memvane by dropping hidden memories
 from the results after ranking. Besides the ranking statistics (path 1, see
 ``audience_side_channel.py``), three paths still read memories the viewer
 cannot see: the graph hop admits any active neighbour (path 2), contradiction

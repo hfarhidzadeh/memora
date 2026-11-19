@@ -101,7 +101,7 @@ class SentenceTransformerEmbedder:
                 raise ImportError(
                     "the sentence-transformers backend needs the "
                     "sentence-transformers package: "
-                    "pip install 'memora-agent-memory[embeddings]'"
+                    "pip install 'memvane[embeddings]'"
                 ) from error
             self._model = SentenceTransformer(self.model_name, device=self._device)
         return self._model.encode(

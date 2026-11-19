@@ -1,5 +1,9 @@
 # Shared memory for multi-user AI assistants: literature review and a proposed design
 
+Project naming note (2026-11-19): references to Memvane below identify this
+repository, previously called Memora. Historical numerical results retain their
+original provenance and provisional status.
+
 - **Date:** 2026-11-13
 - **Scope:** long-term memory for LLM agents, with emphasis on memory that several
   people share (a team, a group chat, an organisation) rather than one user's
@@ -12,7 +16,7 @@
   preprints that have not been peer reviewed. Check a number against the paper's
   PDF before citing it.
 - **What is a finding and what is a proposal:** sections 2–6 report the
-  literature. Sections 7–10 (the proposed design, the Memora changes and the
+  literature. Sections 7–10 (the proposed design, the Memvane changes and the
   evaluation plan) are the model's suggestions for the researcher to judge.
 
 Reading levels used in the reference list (section 12):
@@ -80,7 +84,7 @@ are narrower:
 | Keep the raw, timestamped messages as the source of truth; use extracted facts as extra index keys, not as a replacement | LongMemEval: facts as extra keys +9.4% recall, +5.4% accuracy, while replacing messages with facts lowers accuracy. Extraction compresses about 35:1 and drops temporal markers and one-off details (2603.04814). Engram: 83.6% vs 73.2% full context on LongMemEval_S at 9.6k vs 79k tokens, and facts alone lost recall. A filesystem agent over raw transcripts scored 74.0% vs 68.5% for Mem0's graph variant on LoCoMo (vendor blog). | Strong: many independent sources |
 | Below about 100k tokens, a strong model reading the whole history usually wins on accuracy; memory wins on cost and latency | Mem0's own table: full context 72.90 vs Mem0 66.88 on LoCoMo, at p95 latency 17.12 s vs 1.44 s. Long-context GPT-5-mini vs a Mem0-style system: LoCoMo 92.85 vs 57.68, LongMemEval 82.40 vs 49.00 (2603.04814). | Strong |
 | Lexical retrieval (BM25) is a hard baseline; hybrid lexical plus dense retrieval is the common winning recipe | Mem0's 2026 rewrite moved to semantic + BM25 + entity retrieval. BM25 matches or beats most memory systems on GroupMemBench and on MemoryAgentBench's conflict task. | Strong |
-| Invalidate superseded facts instead of deleting them, but be careful how old values are shown | Zep, Mem0's graph variant, Engram and Kumiho all invalidate rather than delete. Showing superseded edges to the answerer lowered past-value accuracy, 72/81 vs 79/81 with no significance test (Ground Truth First, 2607.21962). Memora's own result: archiving old versions cut MRR on past-value questions from 0.53 to 0.24. | Moderate |
+| Invalidate superseded facts instead of deleting them, but be careful how old values are shown | Zep, Mem0's graph variant, Engram and Kumiho all invalidate rather than delete. Showing superseded edges to the answerer lowered past-value accuracy, 72/81 vs 79/81 with no significance test (Ground Truth First, 2607.21962). Memvane's own result: archiving old versions cut MRR on past-value questions from 0.53 to 0.24. | Moderate |
 | Updates and conflicts are the weakest skill | MemoryAgentBench FactConsolidation: multi-hop accuracy at most about 7% for every method; Mem0 18 single-hop vs 60 for long-context GPT-4o. STALE (implicit conflicts): best model 55.2%. Self-maintained bounded memory cut gpt-5.4 from 92% to 77% on LongMemEval update questions (n = 25). | Strong in direction; small samples |
 | LLM extraction adds errors that accumulate | HaluMem: errors made at extraction and update propagate to answers. TANGLE: extraction pipelines kept the full conflict for between 46.2% (MemOS) and 91.7% (Letta) of instances. "Manufactured Confidence" (2606.29279, [A]): consolidation turned a hedged remark into a confident dated fact. | Strong |
 | Background consolidation (outside the response path) pays off | Sleep-time compute: about 5x less test-time compute at equal accuracy. LightMem, LangMem and Engram all consolidate offline. | Moderate |
@@ -504,13 +508,13 @@ delegation rules:
 
 Superseded claims stay stored. The default read view shows current values and
 open disputes. History is shown only when the question asks about the past.
-This keeps past-value questions answerable, which Memora found archiving
+This keeps past-value questions answerable, which Memvane found archiving
 destroys, without putting stale values in front of the answerer (Ground Truth
 First).
 
 **Caveat.** Rule 2 decides what to do *after* two claims have been recognised
 as being about the same slot. Recognising that is update detection, the open
-problem Memora's update-detection experiment is working on. The rule does not
+problem Memvane's update-detection experiment is working on. The rule does not
 solve detection. It also needs each claim sorted into personal or team, which
 is a second classification step.
 
@@ -621,9 +625,9 @@ Two risks follow from the prior work:
 
 ---
 
-## 8. What this means for Memora
+## 8. What this means for Memvane
 
-Until 2026-11-15 Memora had one store and no notion of principals, and
+Until 2026-11-15 Memvane had one store and no notion of principals, and
 `search` built its candidate set from every active memory
 ([store.py:882](../src/dynmemory/store.py#L882)). A search without `viewers`
 still works that way. If per-user visibility were added by filtering results
@@ -923,7 +927,7 @@ accepted, which tells the writer the claim exists.
   A read without `viewers` uses every
   memory on an unguarded store; guarded stores reject it.
 
-How the earlier Memora findings fit:
+How the earlier Memvane findings fit:
 
 - **Oracle update handling** (+0.158 MRR) is the largest single gain measured.
   Rule 2 decides which detected updates count as updates.
@@ -945,7 +949,7 @@ and admin records plus keyed contradiction links are now built):
   is about.
 
 Rule 3's source lists are built as `memory_sources` (2026-11-18, above). They
-are supplied by the caller; Memora still has no LLM consolidation of its own.
+are supplied by the caller; Memvane still has no LLM consolidation of its own.
 
 ---
 
@@ -1031,7 +1035,7 @@ and are the first to revisit if they do not fit the team:
 | --- | --- | --- |
 | Who owns personal facts? | The person the fact is about, even against an admin | An admin does not know a member's preferences or availability better than the member does (7.4) |
 | Does a leaver keep access to their own messages in the channel they left? | No | One rule with no exceptions is easier to check and fails closed. A leaver's message is often a reply that quotes or reveals what others said (7.2) |
-| Where to start? | Stage A, beginning with H2 on Memora | It is cheap and needs no labels. The first run is reported in section 8 |
+| Where to start? | Stage A, beginning with H2 on Memvane | It is cheap and needs no labels. The first run is reported in section 8 |
 
 Two of the researcher's decisions move the design closer to existing work (7.8):
 
@@ -1043,9 +1047,10 @@ Still open:
 
 1. **Who appoints admins.** This is treated as workspace configuration, outside
    the memory.
-2. **Name.** One search snippet mentioned a published memory system also called
-   "Memora" (with a "FAMA" metric). Check for a name clash before publishing
-   anything under that name.
+
+The naming issue was resolved on 2026-11-19 by selecting **Memvane** for this
+project, formerly Memora. The published Memora system and benchmark keep their
+original names; see the [name review](public_name_review.md).
 
 ---
 

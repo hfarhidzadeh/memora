@@ -1,9 +1,9 @@
-# Memora
+# Memvane
 
-**Working name; rename before public release.** A published agent-memory
-system already uses “Memora”; see the [name review](docs/public_name_review.md).
+Formerly called Memora; renamed to avoid a collision with published memory
+systems. See the [name review](docs/public_name_review.md).
 
-Memora is a local-first prototype for **self-evolving agent memory**. It
+Memvane is a local-first prototype for **self-evolving agent memory**. It
 demonstrates typed memory, explicit knowledge links, hybrid retrieval, and
 conservative memory pruning in a small Python package backed by SQLite.
 
@@ -50,6 +50,11 @@ python -m pip install -e .
 python -m pip install -e '.[embeddings]'   # optional: semantic vectors
 ```
 
+The package and command are now `memvane`; reinstall after updating an older
+checkout. Python imports remain `dynmemory`. The default database remains
+`.memora.sqlite3` for compatibility with existing stores; use `--db` to select
+another path. Existing database contents need no migration for this rename.
+
 Or run from a checkout without installing:
 
 ```bash
@@ -59,23 +64,23 @@ PYTHONPATH=src python -m dynmemory --help
 ## Quick start
 
 ```bash
-memora --db ./agent-memory.sqlite3 init
-memora --db ./agent-memory.sqlite3 add \
+memvane --db ./agent-memory.sqlite3 init
+memvane --db ./agent-memory.sqlite3 add \
   "Prefer SQLite for local memory storage." \
   --type user_preference --key storage.backend --importance 0.8
-memora --db ./agent-memory.sqlite3 add \
+memvane --db ./agent-memory.sqlite3 add \
   "The agent's memory must stay on the user's machine." \
   --type technical_constraint
-memora --db ./agent-memory.sqlite3 search "SQLite"
-memora --db ./agent-memory.sqlite3 list
+memvane --db ./agent-memory.sqlite3 search "SQLite"
+memvane --db ./agent-memory.sqlite3 list
 ```
 
-The `add` command prints each new memory's ID. Use `memora link <source-id>
+The `add` command prints each new memory's ID. Use `memvane link <source-id>
 <target-id> --relation supports` to connect two active memories; searching one
 can then also retrieve the other.
 
 Bad input (an unknown ID, a confidence above 1, a missing file) prints a
-one-line `memora: error: ...` message and exits with status 1.
+one-line `memvane: error: ...` message and exits with status 1.
 
 ## Links and versions
 
@@ -90,7 +95,7 @@ continue the same history. A memory can only supersede an older one; to bring
 back earlier content, add it again as a new memory.
 
 ```bash
-memora --db ./agent-memory.sqlite3 history <memory-id>
+memvane --db ./agent-memory.sqlite3 history <memory-id>
 ```
 
 `history` accepts any version and prints all of them, newest first. If pruning
@@ -338,8 +343,8 @@ python3 -I experiments/audience_side_channel.py
 Choose a backend with `--embedder` before the command:
 
 ```bash
-memora --db ./agent-memory.sqlite3 --embedder ngram search "invoice"
-memora --db ./agent-memory.sqlite3 --embedder sentence-transformers search "short responses"
+memvane --db ./agent-memory.sqlite3 --embedder ngram search "invoice"
+memvane --db ./agent-memory.sqlite3 --embedder sentence-transformers search "short responses"
 ```
 
 | Backend | Needs | Finds | Default `--min-similarity` |
@@ -386,11 +391,11 @@ never accessed. Memories idle for at least `--min-age-days` that score below
 `--threshold` are candidates. Pruning is a dry-run by default:
 
 ```bash
-memora --db ./agent-memory.sqlite3 prune --min-age-days 30
-memora --db ./agent-memory.sqlite3 prune --decay episode=14 --decay task=30
-memora --db ./agent-memory.sqlite3 prune --min-age-days 30 --apply
-memora --db ./agent-memory.sqlite3 list --include-archived
-memora --db ./agent-memory.sqlite3 restore <memory-id>
+memvane --db ./agent-memory.sqlite3 prune --min-age-days 30
+memvane --db ./agent-memory.sqlite3 prune --decay episode=14 --decay task=30
+memvane --db ./agent-memory.sqlite3 prune --min-age-days 30 --apply
+memvane --db ./agent-memory.sqlite3 list --include-archived
+memvane --db ./agent-memory.sqlite3 restore <memory-id>
 ```
 
 - `--decay KIND=DAYS` gives one memory type its own decay (repeatable);
@@ -404,9 +409,9 @@ memora --db ./agent-memory.sqlite3 restore <memory-id>
 ## Evaluation
 
 ```bash
-memora eval eval/synthetic_set.json
-memora --embedder ngram eval eval/synthetic_set.json
-memora --embedder sentence-transformers eval eval/synthetic_set.json --json
+memvane eval eval/synthetic_set.json
+memvane --embedder ngram eval eval/synthetic_set.json
+memvane --embedder sentence-transformers eval eval/synthetic_set.json --json
 ```
 
 An evaluation set is a JSON file with `memories` (key → content and kind),
@@ -497,7 +502,7 @@ being used as research conclusions.
 
 [LongMemEval](https://arxiv.org/abs/2410.10813) (Wu et al., ICLR 2025; MIT
 licence) is a public benchmark of long chat histories with questions about
-them. It contains no patient data. Memora converts it into evaluation suites:
+them. It contains no patient data. Memvane converts it into evaluation suites:
 
 ```bash
 mkdir -p data/longmemeval
@@ -506,7 +511,7 @@ curl -L -o data/longmemeval/longmemeval_s_cleaned.json \
 PYTHONPATH=src python -m dynmemory.longmemeval data/longmemeval/longmemeval_s_cleaned.json \
   --labels eval/longmemeval_knowledge_update_labels.json \
   --out data/longmemeval/knowledge_update.jsonl
-memora --link-carryover topic eval data/longmemeval/knowledge_update.jsonl
+memvane --link-carryover topic eval data/longmemeval/knowledge_update.jsonl
 ```
 
 The download is 277 MB. Each question becomes one evaluation set: the user's

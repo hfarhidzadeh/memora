@@ -1,4 +1,4 @@
-"""Convert LongMemEval questions into Memora evaluation sets.
+"""Convert LongMemEval questions into Memvane evaluation sets.
 
 LongMemEval (Wu et al., ICLR 2025; MIT licence) gives every question its own
 timestamped chat history. Each question becomes one evaluation set:
@@ -189,7 +189,7 @@ def convert(
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m dynmemory.longmemeval",
-        description="Convert LongMemEval questions into a Memora evaluation suite (.jsonl).",
+        description="Convert LongMemEval questions into a Memvane evaluation suite (.jsonl).",
     )
     parser.add_argument("input", help="a LongMemEval JSON file, e.g. longmemeval_s_cleaned.json")
     parser.add_argument("--out", required=True, help="output .jsonl file")

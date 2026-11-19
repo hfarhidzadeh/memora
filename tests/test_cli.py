@@ -34,7 +34,7 @@ class CliTests(unittest.TestCase):
     def test_invalid_input_is_an_error_message_not_a_traceback(self):
         code, out, err = self.run_cli("add", "x", "--type", "fact", "--confidence", "2")
         self.assertEqual((code, out), (1, ""))
-        self.assertEqual(err.strip(), "memora: error: confidence must be between 0 and 1")
+        self.assertEqual(err.strip(), "memvane: error: confidence must be between 0 and 1")
 
         code, _, err = self.run_cli("link", "missing-a", "missing-b")
         self.assertEqual(code, 1)
@@ -111,7 +111,7 @@ class CliTests(unittest.TestCase):
 
         code, _, err = self.run_cli("eval", str(Path(self.temp_dir.name) / "missing.json"))
         self.assertEqual(code, 1)
-        self.assertIn("memora: error:", err)
+        self.assertIn("memvane: error:", err)
 
 
 if __name__ == "__main__":

@@ -166,7 +166,7 @@ class LabelTests(unittest.TestCase):
 
 
 class ConvertedSuiteTests(unittest.TestCase):
-    def test_command_writes_a_suite_that_memora_can_evaluate(self):
+    def test_command_writes_a_suite_that_memvane_can_evaluate(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "questions.json"
             source.write_text(json.dumps([QUESTION, question(question_id="q3")]), encoding="utf-8")

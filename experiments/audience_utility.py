@@ -4,7 +4,7 @@ Question (H1 in section 9 of docs/multi_user_memory_review.md). Does filtering
 before retrieval, as built (``search(..., viewers=...)``), give zero leakage at
 no utility cost, compared with filtering after retrieval? The review lists a
 fourth arm, filtering before retrieval plus per-audience summaries. It does not
-apply here: Memora has no consolidation, so there are no summaries to build
+apply here: Memvane has no consolidation, so there are no summaries to build
 per audience.
 
 Data. Scripted and synthetic, no LLM, no real text. Each trial builds one

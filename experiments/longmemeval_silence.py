@@ -1,4 +1,4 @@
-"""Silence on LongMemEval: can a score gate tell when Memora has no answer?
+"""Silence on LongMemEval: can a score gate tell when Memvane has no answer?
 
 Question. Search always returns the best matches, so when the answer was never
 stored it hands back junk. Can a gate on the raw search signals stay silent for

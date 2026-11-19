@@ -7,7 +7,7 @@ are retained for reproducibility, not as validated update ground truth.
 Question. When a newer version of a fact replaces the old one, should the old
 version's links move to the new version? Three options:
 
-- keep: links stay on the old, archived version (Memora's default);
+- keep: links stay on the old, archived version (Memvane's default);
 - copy: links are copied to the new version when the update happens;
 - topic: links stay put, and search treats a link to any version of a fact as
   a link to its current version.

@@ -1,7 +1,7 @@
 """Side channel in search scores: can a viewer detect words in memories they cannot see?
 
 Question (H2 in docs/multi_user_memory_review.md). Suppose per-user visibility
-were added to Memora by dropping hidden memories from the results after
+were added to Memvane by dropping hidden memories from the results after
 ranking. Search computes document frequencies over every active memory, so a
 viewer's own scores depend on hidden content. Can a viewer use that to learn
 whether a chosen word appears in a channel they are not in? Does filtering

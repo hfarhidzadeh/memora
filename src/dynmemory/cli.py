@@ -1,4 +1,4 @@
-"""Command-line interface for the Memora memory prototype."""
+"""Command-line interface for the Memvane memory prototype."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def _number_or_none(text: str) -> Optional[float]:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="memora",
+        prog="memvane",
         description="A local-first typed memory store for agent prototypes.",
     )
     parser.add_argument(
@@ -277,7 +277,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         return _run(args)
     except (ValueError, ImportError, OSError, sqlite3.Error) as error:
-        print("memora: error: {}".format(error), file=sys.stderr)
+        print("memvane: error: {}".format(error), file=sys.stderr)
         return 1
 
 
