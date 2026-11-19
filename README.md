@@ -1,8 +1,5 @@
 # Memvane
 
-Formerly called Memora; renamed to avoid a collision with published memory
-systems. See the [name review](docs/public_name_review.md).
-
 Memvane is a local-first prototype for **self-evolving agent memory**. It
 demonstrates typed memory, explicit knowledge links, hybrid retrieval, and
 conservative memory pruning in a small Python package backed by SQLite.
