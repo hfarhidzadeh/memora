@@ -153,10 +153,10 @@ currently belong to every source channel.
 
 **Retraction.** `retract_message` (by the speaker, or by an admin) replaces
 the message content with a tombstone, marks every memory listing it as stale and
-archived, and deletes their embeddings. Stale memories are withheld from every
-ordinary read, and `restore` refuses them. `stale_memories()` is the queue for
-trusted code to rebuild them from the sources that remain. The stale memory
-rows themselves keep their original text.
+archived, replaces their text with `[retracted]`, and deletes their embeddings.
+The rows keep their ID, key, channel and speaker. Stale memories are withheld
+from every ordinary read, and `restore` refuses them. `stale_memories()` is the
+queue for trusted code to rebuild them from the sources that remain.
 
 **Links.** `relate(source, target, relation)` needs both memories to exist and
 not be archived. A `supersedes` link must stay inside one channel; within a
@@ -332,9 +332,9 @@ injected fault is detected, so a passing experiment means something.
 
 - Write authentication and process isolation.
 - A standalone dispute table (disputes appear as `claim_status` and links).
-- Automatic regeneration of stale derived memories. A retracted memory's old
-  text remains in its stale row.
-- Physical erasure from SQLite backups and free pages.
+- Automatic regeneration of stale derived memories.
+- Physical erasure from SQLite backups and free pages: no live row keeps
+  retracted text, but the raw file still did in 99% of experiment trials.
 - Who-knows-what, from the design document.
 - Channel, viewer and message options in the CLI.
 - Semantic conflict detection and automatic update detection.

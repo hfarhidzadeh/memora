@@ -442,6 +442,112 @@ class WriterSideChannelTests(unittest.TestCase):
         self.assertEqual(self.outcome(store, "alice", "Review is Friday", key="review"), "ok")
 
 
+class RetractionErasureTests(unittest.TestCase):
+    """A retraction must leave no readable copy of the retracted text (H5).
+
+    Found in review on 2026-11-18: the message became a tombstone and the
+    memories derived from it were hidden from every read, but their rows kept
+    the retracted text word for word, and ``stale_memories()`` returned it.
+    """
+
+    CANARY = "canaryxq7"
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.store = MemoryStore(Path(self.temp_dir.name) / "erase.sqlite3")
+        for member in ("alice", "bob"):
+            self.store.join_channel("design", member)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def derive(self, speaker, text, *, key=None, extra_sources=()):
+        writer = self.store.for_writer(speaker)
+        message = writer.add_message(text, channel="design")
+        memory = writer.add_memory(
+            text, FACT, channel="design", memory_key=key,
+            source_message_ids=[message.id, *[m.id for m in extra_sources]],
+        )
+        return message, memory
+
+    def stored_text(self):
+        """Every text value in every table of the database file."""
+        found = []
+        with self.store._transaction(write=False) as connection:
+            tables = [
+                row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            ]
+            for table in tables:
+                for row in connection.execute("SELECT * FROM {}".format(table)):
+                    found.extend(
+                        value if isinstance(value, str) else value.decode("latin-1")
+                        for value in tuple(row) if isinstance(value, (str, bytes))
+                    )
+        return found
+
+    def holds(self, text):
+        return any(text in value for value in self.stored_text())
+
+    def test_a_retracted_text_survives_in_no_stored_value(self):
+        message, memory = self.derive("alice", "launch code {} for friday".format(self.CANARY), key="launch")
+        self.assertTrue(self.holds(self.CANARY))  # the scan can see it
+
+        self.store.for_writer("alice").retract_message(message.id)
+
+        self.assertFalse(self.holds(self.CANARY))
+        (stale,) = self.store.stale_memories()
+        self.assertEqual(stale.id, memory.id)
+        self.assertNotIn(self.CANARY, stale.content)
+
+    def test_the_queue_still_names_what_to_rebuild(self):
+        message, memory = self.derive("alice", "launch code {}".format(self.CANARY), key="launch")
+        self.store.for_writer("alice").retract_message(message.id)
+
+        (stale,) = self.store.stale_memories()
+        self.assertEqual((stale.id, stale.memory_key, stale.channel, stale.speaker),
+                         (memory.id, "launch", "design", "alice"))
+        self.assertIsNotNone(stale.stale_at)
+
+    def test_unrelated_memories_and_messages_keep_their_text(self):
+        # Control: passed before the fix.
+        message, _ = self.derive("alice", "launch code {} for friday".format(self.CANARY))
+        other, kept = self.derive("bob", "budget review is thursday", key="budget")
+
+        self.store.for_writer("alice").retract_message(message.id)
+
+        self.assertEqual(self.store.get_memory(kept.id, viewers="bob").content, "budget review is thursday")
+        self.assertEqual(self.store.get_message(other.id, viewers="bob").content, "budget review is thursday")
+        self.assertNotIn(kept.id, [m.id for m in self.store.stale_memories()])
+
+    def test_a_memory_with_two_sources_is_cleared_but_the_other_message_stays(self):
+        first, _ = self.derive("alice", "date is friday")
+        second = self.store.for_writer("bob").add_message(
+            "confirmed by {}".format(self.CANARY), channel="design"
+        )
+        writer = self.store.for_writer("alice")
+        combined = writer.add_memory(
+            "friday confirmed by {}".format(self.CANARY), FACT, channel="design",
+            source_message_ids=[first.id, second.id],
+        )
+
+        writer.retract_message(first.id)
+
+        stale = {m.id: m for m in self.store.stale_memories()}
+        self.assertNotIn(self.CANARY, stale[combined.id].content)
+        # The surviving source message is untouched, so a rebuild can use it.
+        self.assertEqual(
+            self.store.get_message(second.id, viewers="bob").content,
+            "confirmed by {}".format(self.CANARY),
+        )
+        self.assertEqual(
+            [m.content for m in self.store.sources_of(combined.id, include_stale=True)
+             if m.content is not None],
+            ["confirmed by {}".format(self.CANARY)],
+        )
+
+
 class ReadTimeResolutionTests(ClaimResolutionCase):
     """What changes, besides the two fixes, once channel claims resolve at read time."""
 

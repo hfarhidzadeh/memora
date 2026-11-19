@@ -905,6 +905,42 @@ accepted, which tells the writer the claim exists.
 - **Not exercised:** retractions, pruning, `restore`, other admins, and
   delegation by anyone but dana to anyone but alice.
 
+**Retraction canaries (H5), 2026-11-19.** Review had found that retraction
+tombstoned the message and hid the derived memories from every read, but their
+rows kept the retracted text, and `stale_memories()` returned it.
+
+- **Decision (the researcher's):** clear the text. On retraction every memory
+  listing the message as a source now has its text replaced by `[retracted]`.
+  The row keeps its ID, key, channel and speaker, so the rebuild queue still
+  says what to rebuild; trusted code rebuilds from the sources that remain.
+- **Tests first:** two regression tests failed before the change and pass after
+  it; two controls (unrelated memories and messages keep their text; a memory
+  with two sources is cleared while the other message stays readable) passed in
+  both.
+- **Experiment** ([audience_retraction_canary.py](../experiments/audience_retraction_canary.py),
+  [results](../experiments/results/audience_retraction_canary.md)), with its
+  decision rule and validation criterion fixed before any run. Each trial plants a
+  unique canary in 4 to 8 messages, derives 3 to 8 memories that repeat the
+  canaries of their sources, retracts 1 or 2 messages, and scans every value
+  of every table. 500 trials.
+- **Current store:** all four rules held in 500 of 500 trials ("retraction
+  erases"): the determinism and probe controls, specificity (nothing changed
+  except memories derived from retracted messages) and erasure (no retracted
+  canary in any stored value). 1,320 memories were derived from retracted
+  messages.
+- **Validation:** the same script on the store before the change (commit
+  2114e4e) failed erasure in 500 of 500 trials (criterion 95%).
+- **Physical erasure is not achieved.** The raw bytes of the database file
+  still contained a retracted canary in 495 of 500 trials on the current store
+  (500 of 500 before the change). SQLite keeps old bytes in free space until
+  they are overwritten. This is reported, not part of the verdict, and the
+  experiment does not claim to erase it. Options if it matters: SQLite's
+  `secure_delete` setting, `VACUUM` after retraction, or encrypting message
+  text (the per-message keys of section 7.5). None is built.
+- **Limits:** synthetic text; a derived memory is tied to its sources only
+  through the list the caller supplies, so text copied into a memory that does
+  not list the message is neither found nor tested.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every

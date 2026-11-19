@@ -274,6 +274,10 @@ class MemoryStore:
     replacement, as in single-user use.
     """
 
+    #: What a memory's text becomes when a source message it was derived from
+    #: is retracted. The column cannot be empty, so this stands in for it.
+    RETRACTED_CONTENT = "[retracted]"
+
     _TOKEN_PATTERN = re.compile(r"\w+", re.UNICODE)
     _RELATION_WEIGHTS = {
         Relationship.RELATED_TO.value: 0.45,
@@ -885,7 +889,13 @@ class MemoryStore:
             return [self._message_from_row(row) for row in rows]
 
     def retract_message(self, message_id: str, *, actor_id: str) -> None:
-        """Tombstone a speaker's message and stale all declared derivations."""
+        """Tombstone a speaker's message and stale all declared derivations.
+
+        Every memory listing the message as a source is marked stale, archived
+        and given the text ``RETRACTED_CONTENT``, and its embeddings are
+        deleted, so no readable copy of the retracted text remains in a live
+        row. Older bytes may remain in SQLite free pages and backups.
+        """
         actor_id = self._name(actor_id, "actor_id")
         now = self._now()
         with self._transaction() as connection:
@@ -906,11 +916,15 @@ class MemoryStore:
                 (now, actor_id, message_id),
             )
             affected = "SELECT memory_id FROM memory_sources WHERE message_id = ?"
+            # The derived text may repeat the retracted words, so it is cleared
+            # too. The row keeps its key, channel, speaker and ID, which is what
+            # a rebuild needs; the text comes from the sources that remain.
             connection.execute(
                 """UPDATE memories SET stale_at = COALESCE(stale_at, ?),
-                archived_at = COALESCE(archived_at, ?), updated_at = ?
+                archived_at = COALESCE(archived_at, ?), updated_at = ?,
+                content = ?
                 WHERE id IN ({})""".format(affected),
-                (now, now, now, message_id),
+                (now, now, now, self.RETRACTED_CONTENT, message_id),
             )
             connection.execute(
                 "DELETE FROM embeddings WHERE memory_id IN ({})".format(affected),

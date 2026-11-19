@@ -303,8 +303,9 @@ store.stale_memories()                           # trusted rebuild queue
 A derived memory is readable only by current members of its own channel **and
 every source message's channel**. A writer must currently belong to each source
 channel. Retraction replaces the message content with a tombstone, marks every
-memory listing it as a source stale, archives those memories, and removes their
-embeddings. Search, history, direct reads and link traversal exclude stale
+memory listing it as a source stale, archives those memories, replaces their
+text with `[retracted]` (the row keeps its ID, key, channel and speaker, so a
+rebuild knows what to redo), and removes their embeddings. Search, history, direct reads and link traversal exclude stale
 memories, and whatever a stale memory had replaced stands again at the next
 read: retracting a correction brings back the earlier claim, and retracting an
 admin's resolution reopens the dispute. `restore` cannot reactivate a stale
@@ -316,7 +317,9 @@ list with `sources_of(memory_id, include_stale=True)`.
 Existing memories without `source_message_ids` retain their previous behavior
 and cannot be invalidated through message retraction. Source messages are
 retrievable by ID, but are not yet indexed by text search. Tombstoning is a
-logical deletion; SQLite backups or free pages may retain older bytes. When
+logical deletion: no live row keeps the retracted text, but SQLite free pages
+and backups retain older bytes (in the retraction experiment the raw database
+file still contained a retracted word in 99% of trials). When
 deriving from another memory, the caller must carry forward its complete raw
 source-message list and preserve the parent's channel restrictions; the store
 does not track parent-memory dependencies or verify that source text supports
