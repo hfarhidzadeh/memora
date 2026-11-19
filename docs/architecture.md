@@ -3,7 +3,7 @@
 How the code is organised, what it stores, and what happens on each read and
 write. Rules and their rationale are in the [README](../README.md) and, for the
 multi-user design, in the [design document](multi_user_memory_review.md). This
-page describes the system as built at schema version 6.
+page describes the system as built at schema version 7.
 
 ## Contents
 
@@ -41,8 +41,13 @@ src/dynmemory/
   store.py        MemoryStore, the data classes, AudienceReader, ChannelWriter,
                   schema and migrations, search, pruning
   embeddings.py   Embedder protocol, NGramHashEmbedder, SentenceTransformerEmbedder
-  cli.py          the `memvane` command (init, add, link, search, list,
-                  history, restore, prune, eval)
+  cli.py          the `memvane` command: memories, links, search, channels,
+                  admins, delegation, messages, disputes, who-knows, stale
+                  queue and rebuild, tokens, serve, eval
+  consolidation.py  Consolidator protocol, ExtractiveConsolidator (rebuilds)
+  detection.py    claim equivalence and update-detection interfaces, baselines
+  auth.py         TokenAuthority (signed member tokens), sessions
+  server.py       MemvaneServer and MemvaneClient over a Unix socket
   evaluation.py   labelled evaluation sets, retrieval and pruning reports,
                   negative controls
   longmemeval.py  converts LongMemEval questions into evaluation sets
@@ -95,12 +100,23 @@ flowchart LR
 - **evaluation.py** builds a store from a labelled set, runs queries, and
   reports recall, reciprocal rank and the rate at which an outdated memory is
   ranked first, next to negative controls.
-- **CLI** is an administrative tool. It does not expose channels, viewers,
-  messages or bound writers.
+- **CLI** is an administrative tool. It exposes channels, viewers (`--viewers`),
+  member writes (`--as`), messages, disputes, who-knows and rebuilding, but it
+  authenticates nobody.
+- **auth.py** issues and verifies HMAC-signed member tokens that expire and can
+  be revoked, and opens sessions (a reader and a writer bound to the verified
+  member).
+- **server.py** runs the store in its own process behind a Unix socket with
+  owner-only permissions. Each request carries a token; reads run as the
+  verified audience, writes as the verified member, and administrative calls
+  are not exposed. This is the process-isolation boundary.
+- **consolidation.py** defines what a rebuild may see: a stale memory and its
+  remaining sources, nothing else. **detection.py** defines pluggable claim
+  equivalence and update detection, with unevaluated baselines.
 
 ## Data model
 
-Schema version 6, stored in SQLite's `user_version`. Opening an older database
+Schema version 7, stored in SQLite's `user_version`. Opening an older database
 upgrades it in place.
 
 | Table | Holds | Notes |
@@ -113,6 +129,8 @@ upgrades it in place.
 | `delegations` | grants of one team key to one member | Timestamped grant and revocation, kept as history. |
 | `messages` | immutable attributed source messages | Retraction replaces the content with a tombstone. |
 | `memory_sources` | which messages a memory was derived from | Complete list, supplied by the caller. |
+| `acknowledgements` | who replied to or reacted to a message | The evidence for "knows"; presence is never recorded as knowing. |
+| `keys.pads` (separate file) | one-time pads, only with `key_path` | One pad per memory text, message text and vector. Destroying a pad makes earlier copies of that row unreadable. |
 
 Columns of `memories` that matter most:
 
@@ -170,6 +188,18 @@ target is archived at once.
 `grant_delegation` and `revoke_delegation` are trusted store calls. Leaving a
 channel also revokes that member's delegations there.
 
+**Acknowledgements.** `writer.acknowledge(message_id, kind)` records a reply or
+reaction by a member who can currently read the message.
+
+**Rebuilds.** `rebuild_stale(consolidator)` writes a new memory for each queued
+stale memory that has an unretracted source left, from exactly those sources.
+It keeps the stale memory's kind, key, channel, speaker, subject, write-time
+authority and write time, and supersedes it.
+
+**Encryption.** With `key_path`, each write seals the text (and vector) with a
+fresh pad of random bytes in the key file, and each read opens it. Retraction
+deletes the pads of the message and its dependent memories.
+
 ## Read path
 
 `search(query, kind=None, limit=10, viewers=None)` works in this order:
@@ -210,6 +240,12 @@ channel also revokes that member's delegations there.
 `get_memory`, `history` and `list_memories` apply the same visibility rule and
 the same claim view, so `superseded_by` and `archived_at` reflect only the
 replacements that audience can see.
+
+`disputes(viewers)` replays each visible channel key and returns a table of
+every speaker's latest claim with its status, for keys whose values differed.
+`who_knows(memory_id, viewers)` reports stated, acknowledged and had-access
+members, using only visible claims and visible source messages. Claim
+comparison uses exact text unless the store was given a `claim_equivalence`.
 
 ## Audience and claim resolution
 
@@ -292,6 +328,8 @@ a Markdown and JSON report to `experiments/results/`.
 | `audience_utility.py` | Does filtering before retrieval cost a viewer answers? |
 | `audience_noninterference.py` | Does anything hidden change what viewers read, including after retractions? |
 | `audience_write_outcomes.py` | Does a bound writer's write outcome depend on claims it cannot see? |
+| `audience_retraction_canary.py` | Does retraction erase the text, rebuild correctly, and leave earlier encrypted copies unreadable? |
+| `audience_disputes_who_knows.py` | Do hidden claims or acknowledgements change dispute tables or who-knows answers? |
 
 Results from single-user LongMemEval runs are marked provisional until the
 [label review](longmemeval_label_review.md) findings are resolved.
@@ -309,7 +347,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 | Store, CLI, embeddings, links | `test_store.py`, `test_cli.py`, `test_embeddings.py`, `test_link_carryover.py` |
 | Evaluation harness and conversion | `test_eval.py`, `test_longmemeval.py`, `test_experiment_statistics.py`, `test_update_detection.py` |
 | Channels, viewers, writers, sources | `test_audience.py`, `test_claim_resolution.py` |
-| The audience experiments | `test_audience_side_channel.py`, `test_audience_link_paths.py`, `test_audience_utility.py`, `test_audience_noninterference.py`, `test_audience_write_outcomes.py` |
+| Disputes, who-knows, encryption, rebuild | `test_disputes_who_knows.py`, `test_encryption_and_rebuild.py` |
+| Tokens, sessions, the server, detection | `test_auth_server.py`, `test_detection.py` |
+| The audience experiments | `test_audience_side_channel.py`, `test_audience_link_paths.py`, `test_audience_utility.py`, `test_audience_noninterference.py`, `test_audience_write_outcomes.py`, `test_audience_retraction_canary.py`, `test_audience_disputes_who_knows.py` |
 
 The experiment tests check each script's own machinery, including that an
 injected fault is detected, so a passing experiment means something.
@@ -325,19 +365,22 @@ injected fault is detected, so a passing experiment means something.
   see.
 - Retraction hides a memory from every ordinary read and keeps whatever it
   replaced standing.
-- The store does not authenticate anyone. Viewer and writer identities come
-  from trusted code, and the SQLite file must be protected like the store
-  itself.
+- The store object authenticates no one: whoever holds it chooses identities.
+  Untrusted callers go through tokens and the server, which owns the SQLite
+  file and the key file.
+- Disputes and who-knows answers are computed from what the viewers can see.
 
 ## What is not built
 
-- Write authentication and process isolation.
-- A standalone dispute table (disputes appear as `claim_status` and links).
-- Automatic regeneration of stale derived memories.
-- Erasure from earlier copies of the database file, backups, rollback journals
-  and filesystem remnants. Within the file itself, `secure_delete` (default on)
-  overwrites deleted bytes: the raw file held a retracted canary in 0 of 500
-  experiment trials.
-- Who-knows-what, from the design document.
-- Channel, viewer and message options in the CLI.
-- Semantic conflict detection and automatic update detection.
+- A model-based consolidator. `rebuild_stale` accepts one, but the project
+  ships only the extractive baseline and calls no model.
+- A validated update detector or semantic equivalence. The interfaces and
+  baselines exist; measuring them on LongMemEval waits for the human review of
+  the knowledge-update labels.
+- Erasure from backups of the key file, from rollback journals and from the
+  filesystem's own remnants. With `key_path`, earlier copies of the main
+  database cannot be read for retracted rows; with `secure_delete`, the file
+  itself keeps no deleted bytes.
+- Persistent token revocation (revocations live in the authority instance)
+  and authentication for the CLI, which stays an administrative tool.
+- Semantic conflict detection across different keys.

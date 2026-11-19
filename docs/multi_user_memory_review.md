@@ -963,6 +963,65 @@ rows kept the retracted text, and `stale_memories()` returned it.
   scrubbed, and not scanned here), or the filesystem's own remnants. The
   experiment scans live rows and the raw database file only.
 
+**The remaining "not built" items, 2026-11-19.** Asked to solve all of them,
+the model built each one up to where a human decision is needed.
+
+- **Disputes table (decision 7).** `disputes(viewers)` returns, for each
+  channel key whose values differed, one row per speaker's latest claim: who,
+  says, when, where, status. After an admin's resolution it stays as history
+  (the admin's row current, agreeing claims `agrees`, others `overruled`), as
+  section 7.4 describes. It is computed at read time from visible claims, not
+  stored, so it cannot drift from the claims or reveal hidden ones.
+- **Who knows what (decision 4, H8).** An `acknowledgements` table (schema
+  version 7) records replies and reactions. `who_knows(memory, viewers)` lists
+  who stated the value, who acknowledged a source message, and who only had
+  access.
+- **Rebuilding stale memories.** `rebuild_stale(consolidator)` gives a
+  consolidator only the remaining sources. The rebuilt memory lists exactly
+  those, keeps the original's authority and place in write order, and
+  supersedes the stale one. A first test showed that a rebuild written with a
+  new timestamp would resolve claims made after the original; the rebuild
+  therefore keeps the original write time. The project ships only an
+  extractive consolidator and still calls no model.
+- **Erasure beyond the file.** With `key_path`, every text and vector is sealed
+  with a one-time pad of random bytes in a separate key file; retraction
+  destroys the pads. A copy of the main database made before a retraction can
+  no longer be read for those rows. Standard library only.
+- **Write authentication and process isolation.** `dynmemory.auth` issues
+  HMAC-signed member tokens with expiry and revocation; `dynmemory.server`
+  serves a store over an owner-only Unix socket, running reads as the verified
+  audience and writes as the verified member, with administrative calls not
+  exposed.
+- **CLI options** for channels, admins, delegation, messages, disputes,
+  who-knows, the stale queue, rebuilding, tokens and the server.
+- **Equivalence and update detection.** Pluggable `claim_equivalence` (with an
+  embedding-based option) and `detect_update` with two baselines. These are
+  mechanisms only: evaluating any detector on LongMemEval waits for the
+  researcher's review of the labels, which so far only AI models have checked.
+
+Experiments, each with its decision rule and validation fixed before running:
+
+- [Disputes and who-knows](../experiments/results/audience_disputes_who_knows.md)
+  (500 pairs): all five rules held, including noninterference for three
+  audiences, a reply counting as knowing, and presence counting only as access.
+  With the injected fault (both computed over every memory) noninterference
+  failed in 496 of 500 pairs ([report](../experiments/results/audience_disputes_who_knows_fault.md);
+  criterion 25%). One labelling bug in the experiment itself, found by its
+  first smoke run, was fixed before any recorded run.
+- [Retraction canaries, version 2](../experiments/results/audience_retraction_canary.md)
+  (500 trials): all six rules held, including the new rebuild rule (684
+  rebuilds in 406 trials, all from exactly the remaining sources, none carrying
+  retracted text) and the backup rule (no copy made before a retraction yielded
+  retracted text with the key file). Validations: without destroying pads,
+  the backup rule failed in 500 of 500 trials; with a consolidator that leaks a
+  retracted word, the rebuild rule failed in all 406 trials that had something
+  to rebuild (criterion 95% each). Run 2's reports are kept in
+  [retraction_canary_run2_superseded](../experiments/results/retraction_canary_run2_superseded/).
+
+Limits: synthetic data written alongside the code; the server has unit tests
+but no many-trial experiment; token revocations are not persisted; a backup of
+the key file restores the pads it holds.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every

@@ -132,6 +132,27 @@ class TrialTests(unittest.TestCase):
         self.assertTrue(all(result["erasure"] for result in results))
 
 
+class VersionTwoTests(unittest.TestCase):
+    """Rules 5 (rebuild) and 6 (encrypted backup), and the faults they must catch."""
+
+    def test_the_current_store_rebuilds_and_protects_backups(self):
+        results = [canary.run_trial(seed) for seed in range(8)]
+        self.assertTrue(all(r["rebuild"] and r["backup"] for r in results))
+        self.assertTrue(any(r["rebuild_opportunities"] for r in results))
+
+    def test_keeping_pads_fails_only_the_backup_rule(self):
+        results = [canary.run_trial(seed, "keep-pads") for seed in range(8)]
+        self.assertEqual([r["backup"] for r in results], [False] * 8)
+        self.assertTrue(all(r["erasure"] and r["rebuild"] for r in results))
+
+    def test_a_leaky_consolidator_fails_the_rebuild_rule_where_it_can_run(self):
+        results = [canary.run_trial(seed, "leaky-rebuild") for seed in range(12)]
+        with_opportunity = [r for r in results if r["rebuild_opportunities"]]
+        self.assertTrue(with_opportunity)
+        self.assertTrue(all(not r["rebuild"] for r in with_opportunity))
+        self.assertTrue(all(r["backup"] for r in results))
+
+
 class MainTests(unittest.TestCase):
     def test_main_writes_the_report(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -271,8 +271,10 @@ Limits:
 - A store opened without `require_viewers=True` still permits unrestricted
   reads for single-user and administrative use. Applications must keep that
   store and the database file away from untrusted callers.
-- The store does not authenticate identities. `add_admin`, membership changes,
-  direct administrative writes, and the SQLite file require trusted code.
+- The store itself does not authenticate identities. `add_admin`, membership
+  changes, direct administrative writes, and the SQLite file require trusted
+  code. For untrusted callers, use signed tokens and the local server
+  (see [Authentication and the local server](#authentication-and-the-local-server)).
 - Access counts and pruning are shared by everyone in the store.
 - A bound writer's writes are judged only on the claims that writer can see:
   the refusal of a change of a key's scope or personal subject, and of a
@@ -280,9 +282,10 @@ Limits:
   Trusted calls through the store itself still check every claim. A key can
   therefore hold claims of different scope when some are hidden from the
   writer; reads resolve each claim by its own authority.
-- A standalone dispute table and automatic regeneration of stale derivations
-  are not implemented. The broader design is in
-  [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
+- Disagreements are shown as tables by `disputes()`, worked out at read time
+  rather than stored. Stale derivations are rebuilt by `rebuild_stale()` with a
+  consolidator you supply; the store calls no model itself. The broader design
+  is in [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
 
 ### Source messages and retraction
 
@@ -341,6 +344,109 @@ Results: `experiments/results/audience_side_channel.md`.
 
 ```bash
 python3 -I experiments/audience_side_channel.py
+```
+
+### Disputes and who knows what
+
+`disputes(viewers=...)` returns each channel key whose claims have disagreed,
+as a table with one row per speaker's latest claim: who, says, when, where and
+status (`current`, `disputed`, `agrees` or `overruled`). After an admin's
+resolution the table stays available as history: the admin's row is current,
+claims that matched it agree and the others are overruled. `open` tells whether
+standing claims still disagree.
+
+`who_knows(memory_id, viewers=...)` reports who **stated** the value (the
+speaker, and anyone holding a standing claim with the same value), who
+**acknowledged** it (replied or reacted to a source message, recorded with
+`writer.acknowledge(message_id, "replied")`), and who only **had access**.
+Being in the channel never counts as knowing.
+
+Both are computed from what the viewers can see: a hidden claim adds no row,
+changes no status and makes nobody a stater. In
+`experiments/audience_disputes_who_knows.py` (500 pairs) both answers were
+identical with and without hidden claims and acknowledgements, a reply counted
+as knowing and presence only as access; with an injected fault that computed
+them over every memory, they differed in 496 of 500 pairs.
+
+```python
+writer = store.for_writer("bob")
+writer.acknowledge(message.id, "replied")
+store.for_viewers("carol").disputes()
+store.for_viewers("carol").who_knows(claim.id)
+```
+
+### Rebuilding stale memories
+
+`store.rebuild_stale(consolidator)` takes each memory in the stale queue and
+calls `consolidator(stale_memory, remaining_sources)` with only the source
+messages that were not retracted. The returned text becomes a new memory that
+lists exactly those sources and keeps the original kind, key, channel, speaker,
+subject, write-time authority and place in write order, and the stale memory
+leaves the queue. `ExtractiveConsolidator` (in `dynmemory.consolidation`)
+simply joins the remaining texts; a model-based consolidator can be passed if
+it sees nothing beyond the sources it is given. A memory with no remaining
+source stays in the queue. In the retraction experiment (500 trials) 684
+memories were rebuilt, each from exactly its remaining sources and none with a
+retracted word; a consolidator that leaked a retracted word was caught in every
+trial that had something to rebuild.
+
+### Encryption at rest
+
+`MemoryStore(path, key_path="memory.keys")` stores every memory's and message's
+text, and every vector, encrypted with a one-time pad of random bytes held in a
+separate key database. Reads are unchanged. Retraction destroys the pads of the
+message and of the memories derived from it, so a copy or backup of the main
+database taken before the retraction can no longer be read for that text. A
+backup of the key file restores the pads it holds, so keep it separate or do
+not back it up. Rows written before encryption was turned on stay readable as
+plain text until they are rewritten. Standard library only. In the retraction
+experiment no copy made before a retraction yielded retracted text with the key
+file (500 of 500 trials); without destroying the pads, every copy did.
+
+### Authentication and the local server
+
+`dynmemory.auth.TokenAuthority(secret)` issues tokens signed with HMAC-SHA256
+that name a member and expire (`issue(member_id, ttl_seconds=...)`,
+`verify(token)`, `revoke(token)`). `open_session(store, token, authority)`
+returns a reader and a writer bound to the verified member, so untrusted code
+never chooses an identity.
+
+`dynmemory.server.MemvaneServer` serves a store over a Unix socket created with
+owner-only permissions. Every request carries a token; reads run as the
+verified audience and writes as the verified member, and administrative calls
+are not exposed. `MemvaneClient(socket_path, token)` is the matching client.
+
+```bash
+memvane new-secret ./secret                         # 32 random bytes, mode 0600
+memvane --db team.sqlite3 serve --socket ./memvane.sock --secret-file ./secret
+memvane token alice --secret-file ./secret          # give this token to alice
+```
+
+### Equivalence and update detection
+
+By default two claims of one key agree only if their text matches after
+trimming and case folding. `MemoryStore(..., claim_equivalence=...)` replaces
+that test; `dynmemory.detection.EmbeddingEquivalence(embedder, threshold=0.9)`
+treats claims whose embeddings are close enough as agreeing.
+`store.detect_update(text, detector, viewers=...)` returns the visible memory a
+new text would replace, according to a detector such as
+`OverlapUpdateDetector` or `EmbeddingUpdateDetector`; the caller decides what
+to do with the answer. These baselines have not been evaluated on real
+conversations: that waits for the human review of the LongMemEval labels.
+
+### Command line for channels and viewers
+
+The CLI now covers channels, admins, delegation, messages, disputes,
+who-knows, the stale queue and rebuilding. `--viewers alice,bob` scopes reads,
+`--as alice` writes as a member with membership checks, and `--key-file`
+turns on encryption. The CLI still authenticates nobody: anyone who can run it
+on the database file can choose those options.
+
+```bash
+memvane --db team.sqlite3 channel join design alice
+memvane --db team.sqlite3 --as alice message add "Review is Thursday" --channel design
+memvane --db team.sqlite3 --viewers carol disputes
+memvane --db team.sqlite3 --viewers carol who-knows MEMORY_ID
 ```
 
 ## Embeddings

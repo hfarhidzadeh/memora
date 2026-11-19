@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import math
+import os
 import re
 import sqlite3
+import threading
 import uuid
 from array import array
 from contextlib import closing, contextmanager
@@ -12,11 +15,11 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
+from typing import Callable, Iterable, Iterator, Mapping, Optional, Sequence, Union
 
 from .embeddings import Embedder
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class MemoryType(str, Enum):
@@ -136,6 +139,62 @@ class PruneCandidate:
 
 
 @dataclass(frozen=True)
+class DisputeRow:
+    """One claim in a dispute table: who said what, when and where, and its status.
+
+    ``status`` is ``current``, ``disputed``, ``agrees`` or ``overruled``.
+    ``standing`` is False for a claim that another speaker's authority replaced;
+    its status then compares it with the value that replaced it.
+    """
+
+    memory_id: str
+    speaker: str
+    says: str
+    when: str
+    where: str
+    status: str
+    standing: bool
+
+
+@dataclass(frozen=True)
+class Dispute:
+    """The claims of one channel key whose values have differed.
+
+    ``open`` is True while two or more standing claims still disagree.
+    """
+
+    channel: str
+    memory_key: str
+    rows: tuple[DisputeRow, ...]
+    open: bool
+
+
+@dataclass(frozen=True)
+class Knowledge:
+    """Who knows a memory, by statement or acknowledgement, and who only had access.
+
+    ``stated``: members who hold a claim with this value themselves (and the
+    memory's speaker). ``acknowledged``: members who replied or reacted to one
+    of its source messages. ``had_access``: everyone else who can currently
+    read it. Presence never counts as knowing.
+    """
+
+    memory_id: str
+    stated: tuple[str, ...]
+    acknowledged: tuple[str, ...]
+    had_access: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Rebuild:
+    """What ``rebuild_stale`` did with one stale memory."""
+
+    stale_id: str
+    rebuilt_id: Optional[str]
+    reason: str
+
+
+@dataclass(frozen=True)
 class _ClaimView:
     """How channel memories resolve for one audience (see ``MemoryStore._claim_view``).
 
@@ -203,6 +262,16 @@ class AudienceReader:
             viewers=self._viewers,
         )
 
+    def disputes(
+        self, *, channel: Optional[str] = None, memory_key: Optional[str] = None
+    ) -> list[Dispute]:
+        return self._store.disputes(
+            viewers=self._viewers, channel=channel, memory_key=memory_key
+        )
+
+    def who_knows(self, memory_id: str) -> Optional[Knowledge]:
+        return self._store.who_knows(memory_id, viewers=self._viewers)
+
 
 class ChannelWriter:
     """Write channel claims as one identity supplied by trusted caller code."""
@@ -233,6 +302,12 @@ class ChannelWriter:
 
     def retract_message(self, message_id: str) -> None:
         self._store.retract_message(message_id, actor_id=self._member_id)
+
+    def acknowledge(self, message_id: str, kind: str = "reacted") -> None:
+        """Record that this member replied or reacted to a message they can read."""
+        self._store._acknowledge(
+            message_id, self._member_id, kind, check_membership=True
+        )
 
 
 def retention_score(
@@ -271,6 +346,17 @@ class MemoryStore:
     file's free space. It does not reach backups, copies of the file made
     earlier, or the filesystem's own remnants.
 
+    ``key_path`` (optional) encrypts every memory's and message's text, and
+    every vector, with a one-time pad of random bytes kept in a separate key
+    database at that path. Retraction destroys the pads of the message and of
+    the memories derived from it, so a copy or backup of the main database
+    made before the retraction can no longer be read for that text. A backup
+    of the key file restores the pads it holds; keep it apart or not at all.
+
+    ``claim_equivalence`` (optional) decides when two claims of one key say
+    the same thing. By default the text must match after trimming and case
+    folding; ``dynmemory.detection`` offers an embedding-based alternative.
+
     Memories in a channel are never archived or superseded when written.
     Which keyed claim replaces which, and explicit ``supersedes`` links, are
     resolved at each read from the memories that read may use: visible to its
@@ -304,11 +390,18 @@ class MemoryStore:
         require_viewers: bool = False,
         require_writer: bool = False,
         secure_delete: bool = True,
+        key_path: Optional[Union[str, Path]] = None,
+        claim_equivalence: Optional[Callable[[str, str], bool]] = None,
     ) -> None:
         self.embedder = embedder
         self.require_viewers = require_viewers
         self.require_writer = require_writer
         self.secure_delete = secure_delete
+        self.key_path = (
+            str(Path(key_path).expanduser()) if key_path is not None else None
+        )
+        self.claim_equivalence = claim_equivalence
+        self._local = threading.local()
         try:
             self.link_carryover = LinkCarryover(link_carryover)
         except ValueError as error:
@@ -361,14 +454,99 @@ class MemoryStore:
             connection.execute(
                 "PRAGMA secure_delete = {}".format("ON" if self.secure_delete else "OFF")
             )
+            if self.key_path is not None:
+                # Pads live in their own file; destroying one is what erases.
+                connection.execute("ATTACH DATABASE ? AS keys", (self.key_path,))
+                connection.execute("PRAGMA keys.secure_delete = ON")
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS keys.pads "
+                    "(id TEXT PRIMARY KEY, pad BLOB NOT NULL)"
+                )
             connection.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+            stack = self._connections()
+            stack.append(connection)
             try:
                 yield connection
             except BaseException:
                 if connection.in_transaction:
                     connection.execute("ROLLBACK")
                 raise
+            finally:
+                stack.pop()
             connection.execute("COMMIT")
+
+    def _connections(self) -> list:
+        """This thread's open transaction connections, innermost last."""
+        stack = getattr(self._local, "stack", None)
+        if stack is None:
+            stack = self._local.stack = []
+        return stack
+
+    _SEALED = "enc1:"
+    _SEALED_BYTES = b"enc1"
+
+    def _seal(self, connection: sqlite3.Connection, key_id: str, text: str) -> str:
+        """Text as stored: encrypted with a fresh one-time pad when keys are on."""
+        if self.key_path is None:
+            return text
+        data = text.encode("utf-8")
+        pad = os.urandom(len(data))
+        connection.execute(
+            "INSERT OR REPLACE INTO keys.pads (id, pad) VALUES (?, ?)", (key_id, pad)
+        )
+        sealed = bytes(left ^ right for left, right in zip(data, pad))
+        return self._SEALED + base64.b64encode(sealed).decode("ascii")
+
+    def _pad(self, key_id: str) -> Optional[bytes]:
+        stack = self._connections()
+        if not stack or self.key_path is None:
+            return None
+        row = stack[-1].execute(
+            "SELECT pad FROM keys.pads WHERE id = ?", (key_id,)
+        ).fetchone()
+        return row[0] if row is not None else None
+
+    #: What sealed text reads as when its pad is gone.
+    UNREADABLE_CONTENT = "[unreadable]"
+
+    def _open(self, key_id: str, stored: Optional[str]) -> Optional[str]:
+        """Stored text as plain text; sealed text whose pad is gone is unreadable."""
+        if stored is None or not stored.startswith(self._SEALED):
+            return stored
+        pad = self._pad(key_id)
+        sealed = base64.b64decode(stored[len(self._SEALED):])
+        if pad is None or len(pad) != len(sealed):
+            return self.UNREADABLE_CONTENT
+        return bytes(left ^ right for left, right in zip(sealed, pad)).decode("utf-8")
+
+    def _seal_bytes(self, connection: sqlite3.Connection, key_id: str, data: bytes) -> bytes:
+        if self.key_path is None or not data:
+            return data
+        pad = os.urandom(len(data))
+        connection.execute(
+            "INSERT OR REPLACE INTO keys.pads (id, pad) VALUES (?, ?)", (key_id, pad)
+        )
+        return self._SEALED_BYTES + bytes(left ^ right for left, right in zip(data, pad))
+
+    def _open_bytes(self, key_id: str, stored: bytes) -> bytes:
+        if not stored or not stored.startswith(self._SEALED_BYTES):
+            return stored
+        sealed = stored[len(self._SEALED_BYTES):]
+        pad = self._pad(key_id)
+        if pad is None or len(pad) != len(sealed):
+            return b""
+        return bytes(left ^ right for left, right in zip(sealed, pad))
+
+    def _plain_claim(self, row: sqlite3.Row) -> dict:
+        """A claim row with its text readable, for replay and labels."""
+        claim = dict(row)
+        claim["content"] = self._open("m:" + row["id"], row["content"])
+        return claim
+
+    def _same_claim(self) -> Callable[[str, str], bool]:
+        if self.claim_equivalence is not None:
+            return self.claim_equivalence
+        return lambda left, right: left.strip().casefold() == right.strip().casefold()
 
     def _initialize(self) -> None:
         tables = (
@@ -470,6 +648,16 @@ class MemoryStore:
                 memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
                 message_id TEXT NOT NULL REFERENCES messages(id),
                 PRIMARY KEY (memory_id, message_id)
+            )
+            """,
+            # Who replied or reacted to a message: the evidence for "knows".
+            """
+            CREATE TABLE IF NOT EXISTS acknowledgements (
+                message_id TEXT NOT NULL REFERENCES messages(id),
+                member_id TEXT NOT NULL CHECK (length(trim(member_id)) > 0),
+                kind TEXT NOT NULL CHECK (kind IN ('replied', 'reacted')),
+                acknowledged_at TEXT NOT NULL,
+                PRIMARY KEY (message_id, member_id, kind)
             )
             """,
         )
@@ -622,12 +810,11 @@ class MemoryStore:
     def _now() -> str:
         return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
-    @staticmethod
-    def _memory_from_row(row: sqlite3.Row) -> Memory:
+    def _memory_from_row(self, row: sqlite3.Row) -> Memory:
         return Memory(
             id=row["id"],
             kind=MemoryType(row["kind"]),
-            content=row["content"],
+            content=self._open("m:" + row["id"], row["content"]),
             memory_key=row["memory_key"],
             source=row["source"],
             confidence=row["confidence"],
@@ -646,11 +833,11 @@ class MemoryStore:
             stale_at=row["stale_at"],
         )
 
-    @staticmethod
-    def _message_from_row(row: sqlite3.Row) -> Message:
+    def _message_from_row(self, row: sqlite3.Row) -> Message:
         return Message(
             id=row["id"], channel=row["channel"], speaker=row["speaker"],
-            content=row["content"], said_at=row["said_at"],
+            content=self._open("s:" + row["id"], row["content"]),
+            said_at=row["said_at"],
             retracted_at=row["retracted_at"], retracted_by=row["retracted_by"],
         )
 
@@ -850,7 +1037,10 @@ class MemoryStore:
             connection.execute(
                 """INSERT INTO messages (id, channel, speaker, content, said_at)
                 VALUES (?, ?, ?, ?, ?)""",
-                (message_id, channel, speaker, content.strip(), now),
+                (
+                    message_id, channel, speaker,
+                    self._seal(connection, "s:" + message_id, content.strip()), now,
+                ),
             )
         return Message(message_id, channel, speaker, content.strip(), now, None)
 
@@ -906,7 +1096,8 @@ class MemoryStore:
         Every memory listing the message as a source is marked stale, archived
         and given the text ``RETRACTED_CONTENT``, and its embeddings are
         deleted, so no readable copy of the retracted text remains in a live
-        row. Older bytes may remain in SQLite free pages and backups.
+        row. With ``key_path``, the pads of the message and of those memories
+        are destroyed too, so copies made earlier cannot be read for them.
         """
         actor_id = self._name(actor_id, "actor_id")
         now = self._now()
@@ -942,6 +1133,17 @@ class MemoryStore:
                 "DELETE FROM embeddings WHERE memory_id IN ({})".format(affected),
                 (message_id,),
             )
+            if self.key_path is not None:
+                # Destroying the pads is what makes older copies unreadable.
+                dependents = [
+                    row[0] for row in connection.execute(affected, (message_id,))
+                ]
+                connection.execute("DELETE FROM keys.pads WHERE id = ?", ("s:" + message_id,))
+                for memory_id in dependents:
+                    connection.execute(
+                        "DELETE FROM keys.pads WHERE id = ? OR id LIKE ?",
+                        ("m:" + memory_id, "v:" + memory_id + ":%"),
+                    )
 
     def stale_memories(self, *, limit: int = 100) -> list[Memory]:
         """Administrative queue of derivations that need rebuilding.
@@ -991,6 +1193,306 @@ class MemoryStore:
             LIMIT 1""",
             (row["id"], row["stale_at"]),
         ).fetchone() is not None
+
+    def disputes(
+        self,
+        *,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+        channel: Optional[str] = None,
+        memory_key: Optional[str] = None,
+    ) -> list[Dispute]:
+        """Every channel key whose claims have disagreed, as these viewers see it.
+
+        Each dispute is a table with one row per speaker's latest claim: who,
+        says, when, where and status. Rows come only from claims the viewers
+        can see that are not stale or pruned, and rule 2 is replayed over
+        those alone, so a hidden claim neither adds a row nor changes a status
+        or the number of disputes. A key appears once its rows hold more than
+        one value; ``open`` tells whether standing claims still disagree.
+        """
+        viewer_ids = self._read_viewers(viewers)
+        visible, visible_parameters = self._visible(viewer_ids)
+        filters, parameters = "", []
+        if channel is not None:
+            filters += " AND memories.channel = ?"
+            parameters.append(self._name(channel, "channel"))
+        if memory_key is not None:
+            filters += " AND memories.memory_key = ?"
+            parameters.append(self._name(memory_key, "memory_key"))
+        groups: dict[tuple[str, str], list[dict]] = {}
+        with self._transaction(write=False) as connection:
+            for row in connection.execute(
+                """
+                SELECT {} FROM memories
+                WHERE channel IS NOT NULL AND memory_key IS NOT NULL{}{}
+                ORDER BY created_at, rowid
+                """.format(self._CLAIM_COLUMNS, filters, visible),
+                parameters + visible_parameters,
+            ):
+                groups.setdefault((row["channel"], row["memory_key"]), []).append(
+                    self._plain_claim(row)
+                )
+        same = self._same_claim()
+        disputes = []
+        for (group_channel, key), claims in sorted(groups.items()):
+            replaced, standing, _ = self._replay(claims, same)
+            by_id = {claim["id"]: claim for claim in claims}
+            rows_claims = [
+                claim for claim in claims
+                if claim["archived_at"] is None
+                and not (
+                    claim["id"] in replaced
+                    and by_id[replaced[claim["id"]][0]]["speaker"] == claim["speaker"]
+                )
+            ]
+            values = self._value_classes([claim["content"] for claim in rows_claims], same)
+            if len(set(values)) < 2:
+                continue
+            standing_ids = {claim["id"] for claim in standing}
+            labels = self._label_claims(
+                [claim for claim in standing if claim["archived_at"] is None], same
+            )
+            rows = []
+            for claim in rows_claims:
+                if claim["id"] in standing_ids:
+                    status, is_standing = labels.get(claim["id"], "current"), True
+                else:
+                    final, seen = claim["id"], {claim["id"]}
+                    while final in replaced and replaced[final][0] not in seen:
+                        final = replaced[final][0]
+                        seen.add(final)
+                    status = (
+                        "agrees" if same(claim["content"], by_id[final]["content"])
+                        else "overruled"
+                    )
+                    is_standing = False
+                rows.append(
+                    DisputeRow(
+                        memory_id=claim["id"],
+                        speaker=claim["speaker"],
+                        says=claim["content"],
+                        when=claim["created_at"],
+                        where=group_channel,
+                        status=status,
+                        standing=is_standing,
+                    )
+                )
+            disputes.append(
+                Dispute(
+                    channel=group_channel,
+                    memory_key=key,
+                    rows=tuple(rows),
+                    open=any(row.standing and row.status == "disputed" for row in rows),
+                )
+            )
+        return disputes
+
+    def acknowledge(self, message_id: str, member_id: str, kind: str = "reacted") -> None:
+        """Record, as trusted code, that a member replied or reacted to a message."""
+        if self.require_writer:
+            raise ValueError("this store requires a bound writer for user-facing writes")
+        self._acknowledge(message_id, member_id, kind, check_membership=False)
+
+    def _acknowledge(
+        self, message_id: str, member_id: str, kind: str, *, check_membership: bool
+    ) -> None:
+        member_id = self._name(member_id, "member_id")
+        if kind not in ("replied", "reacted"):
+            raise ValueError("kind must be 'replied' or 'reacted'")
+        with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT channel, retracted_at FROM messages WHERE id = ?", (message_id,)
+            ).fetchone()
+            if row is None or row["retracted_at"] is not None or (
+                check_membership
+                and not connection.execute(
+                    """SELECT 1 FROM channel_members WHERE channel = ?
+                    AND member_id = ? AND left_at IS NULL""",
+                    (row["channel"], member_id),
+                ).fetchone()
+            ):
+                raise ValueError("message is not available to acknowledge")
+            connection.execute(
+                """INSERT INTO acknowledgements
+                (message_id, member_id, kind, acknowledged_at) VALUES (?, ?, ?, ?)
+                ON CONFLICT DO NOTHING""",
+                (message_id, member_id, kind, self._now()),
+            )
+
+    def who_knows(
+        self,
+        memory_id: str,
+        *,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+    ) -> Optional[Knowledge]:
+        """Who knows a channel memory, as these viewers can tell; None if hidden.
+
+        A member counts as knowing only by stating the value (they hold a
+        standing claim with it, or said the memory) or by acknowledging a
+        source message (a reply or reaction). Everyone else who can currently
+        read it is listed as having had access. The answer draws only on
+        claims and source messages the viewers can see.
+        """
+        viewer_ids = self._read_viewers(viewers)
+        visible, visible_parameters = self._visible(viewer_ids)
+        with self._transaction(write=False) as connection:
+            row = connection.execute(
+                "SELECT * FROM memories WHERE id = ?" + visible,
+                [memory_id] + visible_parameters,
+            ).fetchone()
+            if row is None or row["channel"] is None:
+                return None
+            memory = self._memory_from_row(row)
+            stated = {memory.speaker} if memory.speaker else set()
+            same = self._same_claim()
+            if memory.memory_key is not None:
+                claims = [
+                    self._plain_claim(claim)
+                    for claim in connection.execute(
+                        """
+                        SELECT {} FROM memories
+                        WHERE channel = ? AND memory_key = ?{}
+                        ORDER BY created_at, rowid
+                        """.format(self._CLAIM_COLUMNS, visible),
+                        [memory.channel, memory.memory_key] + visible_parameters,
+                    )
+                ]
+                standing = self._replay(claims, same)[1]
+                stated |= {
+                    claim["speaker"] for claim in standing
+                    if claim["archived_at"] is None
+                    and same(claim["content"], memory.content)
+                }
+            sources = [
+                source[0]
+                for source in connection.execute(
+                    "SELECT message_id FROM memory_sources WHERE memory_id = ?", (memory.id,)
+                )
+            ]
+            acknowledged: set = set()
+            channels = {memory.channel}
+            if sources:
+                placeholders = ",".join("?" for _ in sources)
+                acknowledged = {
+                    member[0]
+                    for member in connection.execute(
+                        """SELECT DISTINCT acknowledgements.member_id
+                        FROM acknowledgements
+                        JOIN messages ON messages.id = acknowledgements.message_id
+                        WHERE messages.retracted_at IS NULL
+                          AND acknowledgements.message_id IN ({})""".format(placeholders),
+                        sources,
+                    )
+                }
+                channels |= {
+                    message[0]
+                    for message in connection.execute(
+                        "SELECT channel FROM messages WHERE id IN ({})".format(placeholders),
+                        sources,
+                    )
+                }
+            audience = None
+            for channel in sorted(channels):
+                current = {
+                    member[0]
+                    for member in connection.execute(
+                        """SELECT member_id FROM channel_members
+                        WHERE channel = ? AND left_at IS NULL""",
+                        (channel,),
+                    )
+                }
+                audience = current if audience is None else audience & current
+        acknowledged -= stated
+        had_access = (audience or set()) - stated - acknowledged
+        return Knowledge(
+            memory_id=memory.id,
+            stated=tuple(sorted(stated)),
+            acknowledged=tuple(sorted(acknowledged)),
+            had_access=tuple(sorted(had_access)),
+        )
+
+    def rebuild_stale(
+        self,
+        consolidator: Callable[[Memory, Sequence[Message]], Optional[str]],
+        *,
+        limit: int = 100,
+    ) -> list[Rebuild]:
+        """Rebuild stale derived memories from the source messages that remain.
+
+        For each memory in the ``stale_memories`` queue, ``consolidator`` is
+        called with the stale memory (whose text is already cleared) and only
+        its remaining, unretracted source messages, and returns the new text
+        (or None to decline). The rebuilt memory lists exactly those sources,
+        keeps the stale memory's kind, key, channel, speaker, subject,
+        write-time authority and write time (so claim resolution orders it
+        where the original stood), and supersedes it, so it leaves the queue. A
+        memory with no remaining source is left in the queue. This is trusted,
+        administrative work; the store calls no model itself.
+        """
+        results = []
+        for stale in self.stale_memories(limit=limit):
+            with self._transaction(write=False) as connection:
+                remaining = [
+                    self._message_from_row(row)
+                    for row in connection.execute(
+                        """SELECT messages.* FROM messages
+                        JOIN memory_sources ON memory_sources.message_id = messages.id
+                        WHERE memory_sources.memory_id = ? AND messages.retracted_at IS NULL
+                        ORDER BY messages.said_at, messages.id""",
+                        (stale.id,),
+                    )
+                ]
+            if not remaining:
+                results.append(Rebuild(stale.id, None, "no remaining sources"))
+                continue
+            rebuilt_text = consolidator(stale, remaining)
+            if rebuilt_text is None or not str(rebuilt_text).strip():
+                results.append(Rebuild(stale.id, None, "consolidator declined"))
+                continue
+            try:
+                rebuilt = self._add_memory(
+                    str(rebuilt_text), stale.kind, memory_key=stale.memory_key,
+                    source=stale.source, confidence=stale.confidence,
+                    importance=stale.importance, channel=stale.channel,
+                    speaker=stale.speaker, fact_subject=stale.fact_subject,
+                    check_membership=False,
+                    source_message_ids=[message.id for message in remaining],
+                    authority=(stale.asserted_as_admin, stale.asserted_as_delegate),
+                    rebuild_of=stale.id,
+                    written_at=stale.created_at,
+                )
+            except ValueError as error:
+                results.append(Rebuild(stale.id, None, "refused: {}".format(error)))
+                continue
+            results.append(Rebuild(stale.id, rebuilt.id, "rebuilt"))
+        return results
+
+    def detect_update(
+        self,
+        content: str,
+        detector: Callable[[str, Sequence[Memory]], Optional[str]],
+        *,
+        channel: Optional[str] = None,
+        viewers: Optional[Union[str, Iterable[str]]] = None,
+        limit: int = 5,
+    ) -> Optional[Memory]:
+        """The visible memory a new text would replace, according to ``detector``.
+
+        Candidates are the ``limit`` best matches for the text among active
+        memories the viewers can see (in ``channel`` if given). ``detector``
+        returns the ID of the one the text updates, or None. The store does
+        not act on the answer: the caller writes the claim under that memory's
+        key, or relates it as a supersession, or ignores it.
+        """
+        results = self.search(content, limit=limit, record_access=False, viewers=viewers)
+        candidates = [
+            result.memory for result in results
+            if channel is None or result.memory.channel == channel
+        ]
+        if not candidates:
+            return None
+        chosen = detector(content.strip(), candidates)
+        return next((memory for memory in candidates if memory.id == chosen), None)
 
     def grant_delegation(
         self, channel: str, memory_key: str, member_id: str, *, granted_by: str
@@ -1086,8 +1588,16 @@ class MemoryStore:
         importance: float, channel: Optional[str], speaker: Optional[str],
         fact_subject: Optional[str], check_membership: bool,
         source_message_ids: Optional[Iterable[str]],
+        authority: Optional[tuple[bool, bool]] = None,
+        rebuild_of: Optional[str] = None,
+        written_at: Optional[str] = None,
     ) -> Memory:
         """Store a memory; a keyed channel claim belongs to its speaker.
+
+        ``authority``, ``rebuild_of`` and ``written_at`` are for
+        ``rebuild_stale``: a rebuild restates the original claim, so it keeps
+        the stale memory's write-time authority and its place in write order,
+        and is recorded as superseding it.
 
         ``channel`` is where the memory was said and ``speaker`` who said it.
         A keyed channel claim is stored as it is, and reads apply rule 2 to
@@ -1173,6 +1683,8 @@ class MemoryStore:
                     (channel, memory_key, speaker),
                 ).fetchone() is not None
             )
+            if authority is not None:
+                asserted_as_admin, asserted_as_delegate = authority
             if memory_key is not None and channel is None:
                 predecessors = connection.execute(
                     """
@@ -1236,12 +1748,12 @@ class MemoryStore:
                 (
                     memory_id,
                     memory_type.value,
-                    content.strip(),
+                    self._seal(connection, "m:" + memory_id, content.strip()),
                     memory_key,
                     source.strip(),
                     confidence,
                     importance,
-                    now,
+                    written_at or now,
                     now,
                     channel,
                     speaker,
@@ -1258,6 +1770,17 @@ class MemoryStore:
                 )
             if self.embedder is not None:
                 self._store_vector(connection, memory_id, vector)
+            if rebuild_of is not None:
+                connection.execute(
+                    """INSERT INTO relationships (source_id, target_id, relation, created_at)
+                    VALUES (?, ?, 'supersedes', ?) ON CONFLICT DO NOTHING""",
+                    (memory_id, rebuild_of, now),
+                )
+                if channel is None:
+                    connection.execute(
+                        "UPDATE memories SET superseded_by = ? WHERE id = ?",
+                        (memory_id, rebuild_of),
+                    )
 
             for previous in predecessors:
                 self._record_supersession(connection, memory_id, previous["id"], now)
@@ -1837,12 +2360,33 @@ class MemoryStore:
     )
 
     @staticmethod
-    def _claim_text(claim: Union[sqlite3.Row, Mapping[str, object]]) -> str:
-        return claim["content"].strip().casefold()
+    def _exact_same(left: str, right: str) -> bool:
+        return left.strip().casefold() == right.strip().casefold()
+
+    @staticmethod
+    def _value_classes(texts: Sequence[str], same: Callable[[str, str], bool]) -> list[int]:
+        """Group texts that say the same thing; each gets the index of its group.
+
+        A text joins the first group whose first text it matches, so the
+        grouping does not depend on ``same`` being transitive.
+        """
+        representatives: list[str] = []
+        classes = []
+        for text in texts:
+            for index, representative in enumerate(representatives):
+                if same(text, representative):
+                    classes.append(index)
+                    break
+            else:
+                representatives.append(text)
+                classes.append(len(representatives) - 1)
+        return classes
 
     @classmethod
     def _replay(
-        cls, claims: Sequence[Union[sqlite3.Row, Mapping[str, object]]]
+        cls,
+        claims: Sequence[Union[sqlite3.Row, Mapping[str, object]]],
+        same: Optional[Callable[[str, str], bool]] = None,
     ) -> tuple[dict[str, tuple[str, str]], list, list[Link]]:
         """Apply rule 2 to one channel key's claims in the order they were written.
 
@@ -1856,6 +2400,7 @@ class MemoryStore:
         Returns what was replaced (by which claim, when), the claims still
         standing, and the contradiction links.
         """
+        same = same or cls._exact_same
         replaced: dict[str, tuple[str, str]] = {}
         conflicts: list[Link] = []
         heads: list = []
@@ -1881,7 +2426,7 @@ class MemoryStore:
                     replaced[head["id"]] = (claim["id"], claim["created_at"])
                 else:
                     standing.append(head)
-                    if cls._claim_text(head) != cls._claim_text(claim):
+                    if not same(head["content"], claim["content"]):
                         conflicts.append(
                             Link(claim["id"], head["id"], Relationship.CONTRADICTS)
                         )
@@ -1890,15 +2435,21 @@ class MemoryStore:
 
     @classmethod
     def _label_claims(
-        cls, claims: Sequence[Union[sqlite3.Row, Mapping[str, object]]]
+        cls,
+        claims: Sequence[Union[sqlite3.Row, Mapping[str, object]]],
+        same: Optional[Callable[[str, str], bool]] = None,
     ) -> dict[str, str]:
         """``current``, ``disputed``, ``agrees`` or ``overruled`` for standing claims."""
         if not claims:
             return {}
-        values = {cls._claim_text(claim) for claim in claims}
+        classes = cls._value_classes(
+            [claim["content"] for claim in claims], same or cls._exact_same
+        )
+        value_of = {claim["id"]: value for claim, value in zip(claims, classes)}
+        values = set(classes)
         max_rank = max(cls._claim_rank(claim) for claim in claims)
         authority_values = {
-            cls._claim_text(claim) for claim in claims
+            value_of[claim["id"]] for claim in claims
             if cls._claim_rank(claim) == max_rank
         }
         statuses = {}
@@ -1906,7 +2457,7 @@ class MemoryStore:
             if max_rank > 0 and len(authority_values) == 1:
                 if cls._claim_rank(claim) == max_rank:
                     status = "current"
-                elif cls._claim_text(claim) in authority_values:
+                elif value_of[claim["id"]] in authority_values:
                     status = "agrees"
                 else:
                     status = "overruled"
@@ -1968,16 +2519,21 @@ class MemoryStore:
             """.format(self._CLAIM_COLUMNS, claim_filter, visible),
             claim_parameters + visible_parameters,
         ):
-            groups.setdefault((row["channel"], row["memory_key"]), []).append(row)
+            groups.setdefault((row["channel"], row["memory_key"]), []).append(
+                self._plain_claim(row)
+            )
+        same = self._same_claim()
         replaced: dict[str, tuple[str, str]] = {}
         statuses: dict[str, str] = {}
         conflicts: list[Link] = []
         for claims in groups.values():
-            group_replaced, standing, group_conflicts = self._replay(claims)
+            group_replaced, standing, group_conflicts = self._replay(claims, same)
             replaced.update(group_replaced)
             conflicts.extend(group_conflicts)
             statuses.update(
-                self._label_claims([c for c in standing if c["archived_at"] is None])
+                self._label_claims(
+                    [c for c in standing if c["archived_at"] is None], same
+                )
             )
 
         both_ends = "".join(
@@ -2097,8 +2653,13 @@ class MemoryStore:
         ):
             if row["memory_id"] not in memories or not row["vector"]:
                 continue
+            data = self._open_bytes(
+                "v:{}:{}".format(row["memory_id"], self.embedder.name), row["vector"]
+            )
+            if not data:
+                continue
             vector = array("f")
-            vector.frombytes(row["vector"])
+            vector.frombytes(data)
             if len(vector) != len(query_vector):
                 continue
             similarity = sum(left * right for left, right in zip(query_vector, vector))
@@ -2243,7 +2804,7 @@ class MemoryStore:
             chunk = end_ids[start:start + self._ID_CHUNK]
             placeholders = ",".join("?" for _ in chunk)
             active.update(
-                (row["id"], row)
+                (row["id"], self._plain_claim(row))
                 for row in connection.execute(
                     """
                     SELECT id, channel, memory_key, content FROM memories
@@ -2253,6 +2814,7 @@ class MemoryStore:
                 )
                 if row["id"] not in view.replaced
             )
+        same = self._same_claim()
         return [
             link
             for link in links
@@ -2265,8 +2827,7 @@ class MemoryStore:
                 and active[link.source_id]["memory_key"] is not None
                 and active[link.source_id]["memory_key"]
                 == active[link.target_id]["memory_key"]
-                and active[link.source_id]["content"].strip().casefold()
-                == active[link.target_id]["content"].strip().casefold()
+                and same(active[link.source_id]["content"], active[link.target_id]["content"])
             )
         ]
 
@@ -2414,7 +2975,11 @@ class MemoryStore:
             (
                 memory_id,
                 self.embedder.name,
-                vector.tobytes() if vector is not None else b"",
+                self._seal_bytes(
+                    connection,
+                    "v:{}:{}".format(memory_id, self.embedder.name),
+                    vector.tobytes() if vector is not None else b"",
+                ),
             ),
         )
 
@@ -2431,6 +2996,10 @@ class MemoryStore:
                 """.format(visible),
                 visible_parameters + [self.embedder.name],
             ).fetchall()
+            rows = [
+                {"id": row["id"], "content": self._open("m:" + row["id"], row["content"])}
+                for row in rows
+            ]
         if not rows:
             return
         vectors = self._embed([row["content"] for row in rows])

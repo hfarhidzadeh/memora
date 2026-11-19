@@ -1091,7 +1091,7 @@ class UpgradeTests(AudienceCase):
         )
         self.assertEqual([m.id for m in reopened.sources_of(derived.id)], [source.id])
         with reopened._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 7)
 
     def test_version_2_channel_key_index_is_rebuilt_for_speakers(self):
         path = Path(self.temp_dir.name) / "v2.sqlite3"
@@ -1118,7 +1118,7 @@ class UpgradeTests(AudienceCase):
             speaker="bob", memory_key="review",
         )
         with reopened._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 7)
         self.assertEqual(len(reopened.list_memories()), 2)
 
     def test_a_version_0_2_database_is_upgraded_in_place(self):
@@ -1137,7 +1137,7 @@ class UpgradeTests(AudienceCase):
         MemoryStore(path)  # opening again changes nothing
 
         with store._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 7)
         old = store.get_memory("old")
         self.assertEqual((old.channel, old.speaker), (None, None))
         self.assertEqual([r.memory.id for r in store.search("launch")], ["old"])

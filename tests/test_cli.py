@@ -94,6 +94,76 @@ class CliTests(unittest.TestCase):
             [entry["memory"]["id"] for entry in json.loads(out)["memories"]], [memory]
         )
 
+    def test_channels_viewers_messages_disputes_and_who_knows(self):
+        for args in (
+            ("channel", "join", "design", "alice"), ("channel", "join", "design", "bob"),
+            ("channel", "join", "design", "carol"), ("channel", "join", "board", "bob"),
+            ("admin", "add", "dana"),
+        ):
+            code, _, err = self.run_cli(*args)
+            self.assertEqual(code, 0, err)
+        _, out, _ = self.run_cli("channel", "members", "design")
+        self.assertEqual(json.loads(out), ["alice", "bob", "carol"])
+
+        code, out, err = self.run_cli("--as", "alice", "message", "add", "review is thursday", "--channel", "design")
+        self.assertEqual(code, 0, err)
+        message = json.loads(out)["id"]
+        thursday = self.add("review is thursday", "fact", "--channel", "design", "--key", "review",
+                            "--sources", message, "--speaker", "alice")
+        code, _, err = self.run_cli("--as", "bob", "add", "review is friday", "--type", "fact",
+                                    "--channel", "design", "--key", "review")
+        self.assertEqual(code, 0, err)
+        self.run_cli("--as", "bob", "add", "board launch secret", "--type", "fact", "--channel", "board")
+
+        _, out, _ = self.run_cli("--viewers", "carol", "search", "launch", "--peek")
+        self.assertEqual(json.loads(out), [])
+        _, out, _ = self.run_cli("--viewers", "carol", "disputes")
+        (dispute,) = json.loads(out)
+        self.assertTrue(dispute["open"])
+        self.assertEqual([row["status"] for row in dispute["rows"]], ["disputed", "disputed"])
+
+        self.run_cli("--as", "carol", "message", "ack", message, "--kind", "replied")
+        _, out, _ = self.run_cli("--viewers", "carol", "who-knows", thursday)
+        knowledge = json.loads(out)
+        self.assertEqual((knowledge["stated"], knowledge["acknowledged"]), (["alice"], ["carol"]))
+
+        code, _, err = self.run_cli("--as", "carol", "message", "retract", message)
+        self.assertEqual(code, 1)
+        self.assertIn("not available for retraction", err)
+        self.assertEqual(self.run_cli("--as", "alice", "message", "retract", message)[0], 0)
+        _, out, _ = self.run_cli("stale")
+        self.assertEqual([memory["id"] for memory in json.loads(out)], [thursday])
+        _, out, _ = self.run_cli("rebuild")
+        self.assertEqual(json.loads(out)[0]["reason"], "no remaining sources")
+        code, _, err = self.run_cli("--viewers", "carol", "get", thursday)
+        self.assertEqual(code, 1)
+
+    def test_writing_as_a_member_checks_membership(self):
+        self.run_cli("channel", "join", "design", "alice")
+        code, _, err = self.run_cli("--as", "mallory", "add", "x", "--type", "fact", "--channel", "design")
+        self.assertEqual(code, 1)
+        self.assertIn("current channel member", err)
+        code, _, err = self.run_cli("--as", "alice", "add", "x", "--type", "fact")
+        self.assertEqual(code, 1)
+        self.assertIn("--as needs --channel", err)
+
+    def test_key_file_encrypts_and_tokens_come_from_a_secret_file(self):
+        keys = str(Path(self.temp_dir.name) / "cli.keys")
+        code, out, err = self.run_cli("--key-file", keys, "add", "zebra canary text", "--type", "fact")
+        self.assertEqual(code, 0, err)
+        self.assertNotIn(b"zebra canary", Path(self.db).read_bytes())
+        _, out, _ = self.run_cli("--key-file", keys, "search", "zebra", "--peek")
+        self.assertEqual(json.loads(out)[0]["memory"]["content"], "zebra canary text")
+
+        secret = str(Path(self.temp_dir.name) / "secret")
+        self.assertEqual(self.run_cli("new-secret", secret)[0], 0)
+        self.assertEqual(Path(secret).stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.run_cli("new-secret", secret)[0], 1)  # never overwritten
+        code, out, _ = self.run_cli("token", "alice", "--secret-file", secret)
+        from dynmemory.auth import TokenAuthority
+        authority = TokenAuthority(bytes.fromhex(Path(secret).read_text().strip()))
+        self.assertEqual(authority.verify(out.strip()), "alice")
+
     def test_eval_reports_treatments_and_controls(self):
         code, out, _ = self.run_cli("eval", str(EVAL_SET), "--seeds", "2")
         self.assertEqual(code, 0)

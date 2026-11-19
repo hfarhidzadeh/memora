@@ -1,6 +1,7 @@
 {
   "trials": 500,
-  "store_schema_version": 6,
+  "fault": null,
+  "store_schema_version": 7,
   "store_secure_delete": true,
   "summary": {
     "checks": {
@@ -19,17 +20,30 @@
       "erasure": {
         "held": 500,
         "not_held_seeds": []
+      },
+      "rebuild": {
+        "held": 500,
+        "not_held_seeds": []
+      },
+      "backup": {
+        "held": 500,
+        "not_held_seeds": []
       }
     },
     "raw_file_still_holds": 0,
     "dependents": 1320,
-    "queue_size": 1259
+    "queue_size": 1259,
+    "rebuild_opportunities": 684,
+    "trials_with_rebuild_opportunity": 406,
+    "rebuild_failures_with_opportunity": 0
   },
   "decision": {
     "rule_1_determinism": true,
     "rule_2_probe": true,
     "rule_3_specificity": true,
     "rule_4_erasure": true,
+    "rule_5_rebuild": true,
+    "rule_6_backup": true,
     "verdict": "retraction erases"
   }
 }

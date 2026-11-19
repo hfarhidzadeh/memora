@@ -35,17 +35,36 @@ Checks, per trial.
 - Erasure: after the retractions, the canary of no retracted message occurs in
   any stored value.
 
+Version 2 checks (added 2026-11-19, after the store gained ``rebuild_stale``
+and the optional ``key_path`` encryption, and before any version 2 run):
+
+- Probe (extended): a byte copy of the plain database file taken before the
+  retractions holds every retracted canary, so the backup scan can see one.
+- Rebuild: after the retractions, ``rebuild_stale`` with the extractive
+  consolidator rebuilds every queued memory that still has an unretracted
+  source, from exactly those sources; its text holds no retracted canary; the
+  queue afterwards holds exactly the memories it could not rebuild; and the
+  scan of stored values still finds no retracted canary.
+- Backup: the trial is built again in a store with a key file. A byte copy of
+  the main file taken before the retractions holds no canary at all, and after
+  the retractions, opening that copy with the key file recovers no retracted
+  canary from any message or memory, while every message that was not
+  retracted still reads correctly from it.
+
 Reported, not part of the verdict: trials in which the raw bytes of the
 database file still contain a retracted canary (SQLite may keep old bytes in
-free space); how many memories were derived from retracted messages.
+free space); how many memories were derived from retracted messages; how many
+queued memories could be rebuilt.
 
 Decision rule, fixed before running:
   1. Determinism holds in every trial.
   2. The probe finds every canary in every trial.
   3. Specificity holds in every trial.
   4. Erasure holds in every trial.
+  5. Rebuild holds in every trial.
+  6. Backup holds in every trial.
 Verdict: "inconclusive (control <n> failed)" if rule 1 or 2 fails; otherwise
-"retraction erases" if rules 3 and 4 hold; otherwise "retraction does not erase
+"retraction erases" if rules 3 to 6 hold; otherwise "retraction does not erase
 (rules <list> failed, first failing seed <s>)".
 
 Validation (positive control against the store), fixed before running: the
@@ -64,11 +83,25 @@ rule are those of run 1, and the report now also names the store's
 raw file holds a retracted canary in few or none of the trials; some residue is
 possible, for example in pages that were freed before a later overwrite.
 
+Validation of version 2, fixed before running. ``--fault keep-pads`` retracts
+without destroying pads: rule 6 must fail in at least 95% of trials.
+``--fault leaky-rebuild`` uses a consolidator that also writes the canary of a
+retracted message, as a model that saw more than its declared sources would:
+rule 5 must fail in at least 95% of the trials in which some memory can be
+rebuilt.
+
+Run 3 (version 2) keeps the data of runs 1 and 2; run 2's reports are kept in
+``experiments/results/retraction_canary_run2_superseded/``.
+
 Default: 500 trials (seeds 0 to 499).
 
 Run from the project root:
 
     python3 -I experiments/audience_retraction_canary.py
+    python3 -I experiments/audience_retraction_canary.py --fault keep-pads \
+        --output experiments/results/audience_retraction_canary_fault_keep_pads
+    python3 -I experiments/audience_retraction_canary.py --fault leaky-rebuild \
+        --output experiments/results/audience_retraction_canary_fault_leaky_rebuild
 """
 
 from __future__ import annotations
@@ -76,6 +109,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -84,6 +118,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from dynmemory import MemoryStore, MemoryType  # noqa: E402
+from dynmemory.consolidation import ExtractiveConsolidator  # noqa: E402
 from dynmemory.store import SCHEMA_VERSION  # noqa: E402
 
 MEMBERS = ("alice", "bob")
@@ -95,10 +130,11 @@ KEY_SHARE = 0.4
 KEYS = ("k0", "k1", "k2")
 RETRACTIONS = (1, 2)
 DEFAULT_TRIALS = 500
-CHECKS = ("determinism", "probe", "specificity", "erasure")
+CHECKS = ("determinism", "probe", "specificity", "erasure", "rebuild", "backup")
 RULES = {number: name for number, name in enumerate(CHECKS, start=1)}
 CONTROL_RULES = (1, 2)
-BUILT_RULES = (3, 4)
+BUILT_RULES = (3, 4, 5, 6)
+FAULTS = ("keep-pads", "leaky-rebuild")
 
 
 def make_trial(seed: int) -> dict:
@@ -157,38 +193,73 @@ def holds(values: list, text: str) -> bool:
     return any(text in value for value in values)
 
 
-def run(trial: dict) -> dict:
+def _build(store: MemoryStore, trial: dict) -> tuple:
+    for member in MEMBERS:
+        store.join_channel(CHANNEL, member)
+    message_ids, memory_ids = [], []
+    for message in trial["messages"]:
+        message_ids.append(
+            store.for_writer(message["speaker"]).add_message(message["text"], channel=CHANNEL).id
+        )
+    for memory in trial["memories"]:
+        written = store.for_writer(memory["speaker"]).add_memory(
+            memory["text"],
+            MemoryType.FACT,
+            channel=CHANNEL,
+            memory_key=memory["key"],
+            source_message_ids=[message_ids[index] for index in memory["sources"]],
+        )
+        memory_ids.append(written.id)
+    return message_ids, memory_ids
+
+
+def _retract(store: MemoryStore, trial: dict, message_ids: list, fault) -> None:
+    for index in trial["retract"]:
+        actor = trial["messages"][index]["speaker"]
+        if fault == "keep-pads" and store.key_path is not None:
+            # The injected fault: retract as if no key file existed, so the pads stay.
+            saved, store.key_path = store.key_path, None
+            try:
+                store.retract_message(message_ids[index], actor_id=actor)
+            finally:
+                store.key_path = saved
+        else:
+            store.retract_message(message_ids[index], actor_id=actor)
+
+
+def _consolidator(trial: dict, fault):
+    extractive = ExtractiveConsolidator()
+    if fault != "leaky-rebuild":
+        return extractive
+    leaked = trial["messages"][trial["retract"][0]]["canary"]
+
+    def leaky(memory, sources):
+        return "{} {}".format(extractive(memory, sources), leaked)
+
+    return leaky
+
+
+def run(trial: dict, fault=None) -> dict:
     seed = trial["seed"]
+    canaries = [message["canary"] for message in trial["messages"]]
+    retracted = set(trial["retract"])
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "e4.sqlite3"
         store = MemoryStore(path)
-        for member in MEMBERS:
-            store.join_channel(CHANNEL, member)
-        message_ids, memory_ids = [], []
-        for message in trial["messages"]:
-            message_ids.append(
-                store.for_writer(message["speaker"]).add_message(message["text"], channel=CHANNEL).id
-            )
-        for memory in trial["memories"]:
-            written = store.for_writer(memory["speaker"]).add_memory(
-                memory["text"],
-                MemoryType.FACT,
-                channel=CHANNEL,
-                memory_key=memory["key"],
-                source_message_ids=[message_ids[index] for index in memory["sources"]],
-            )
-            memory_ids.append(written.id)
+        message_ids, memory_ids = _build(store, trial)
 
         before = stored_values(store)
-        canaries = [message["canary"] for message in trial["messages"]]
-        probe = all(holds(before, canary) for canary in canaries)
+        backup = Path(directory) / "backup.sqlite3"
+        shutil.copyfile(path, backup)
+        backup_bytes = backup.read_bytes()
+        probe = all(holds(before, canary) for canary in canaries) and all(
+            canaries[index].encode() in backup_bytes for index in retracted
+        )
 
-        for index in trial["retract"]:
-            store.retract_message(message_ids[index], actor_id=trial["messages"][index]["speaker"])
+        _retract(store, trial, message_ids, fault)
         after = stored_values(store)
         raw = path.read_bytes()
 
-        retracted = set(trial["retract"])
         erased = not any(holds(after, canaries[index]) for index in retracted)
         kept_messages = all(
             store.get_message(message_ids[index]).content == trial["messages"][index]["text"]
@@ -201,25 +272,74 @@ def run(trial: dict) -> dict:
             if not retracted & set(memory["sources"])
         )
         dependents = sum(bool(retracted & set(memory["sources"])) for memory in trial["memories"])
-        store_text = {
-            "queue": sorted(memory.id for memory in store.stale_memories()),
-        }
-        return {
-            "probe": probe,
-            "specificity": kept_messages and kept_memories,
-            "erasure": erased,
-            "raw_file_still_holds": any(canaries[i].encode() in raw for i in retracted),
-            "dependents": dependents,
-            "queue_size": len(store_text["queue"]),
-            "seed": seed,
-        }
+
+        queued = [memory.id for memory in store.stale_memories()]
+        results = {result.stale_id: result for result in store.rebuild_stale(_consolidator(trial, fault))}
+        rebuild = set(results) == set(queued)
+        opportunities = 0
+        for stale_id in queued:
+            sources = trial["memories"][memory_ids.index(stale_id)]["sources"]
+            remaining = sorted(message_ids[index] for index in sources if index not in retracted)
+            result = results.get(stale_id)
+            if remaining:
+                opportunities += 1
+                if result is None or result.rebuilt_id is None:
+                    rebuild = False
+                    continue
+                rebuilt = store.get_memory(result.rebuilt_id)
+                listed = sorted(message.id for message in store.sources_of(result.rebuilt_id))
+                if listed != remaining or any(canaries[i] in rebuilt.content for i in retracted):
+                    rebuild = False
+            elif result is None or result.rebuilt_id is not None:
+                rebuild = False
+        unrebuilt = {stale_id for stale_id, result in results.items() if result.rebuilt_id is None}
+        if {memory.id for memory in store.stale_memories()} != unrebuilt:
+            rebuild = False
+        if any(holds(stored_values(store), canaries[index]) for index in retracted):
+            rebuild = False
+
+    with tempfile.TemporaryDirectory() as directory:
+        path, keys = Path(directory) / "e4.sqlite3", Path(directory) / "e4.keys"
+        store = MemoryStore(path, key_path=keys)
+        message_ids, memory_ids = _build(store, trial)
+        copy = Path(directory) / "copy.sqlite3"
+        shutil.copyfile(path, copy)
+        copy_holds_text = any(canary.encode() in copy.read_bytes() for canary in canaries)
+        _retract(store, trial, message_ids, fault)
+        old = MemoryStore(copy, key_path=keys)
+        recovered = [old.get_message(message_id).content for message_id in message_ids]
+        recovered += [
+            memory.content
+            for memory in (old.get_memory(memory_id) for memory_id in memory_ids)
+            if memory is not None
+        ]
+        leaked = any(canaries[i] in (value or "") for value in recovered for i in retracted)
+        readable = all(
+            old.get_message(message_ids[index]).content == trial["messages"][index]["text"]
+            for index in range(len(message_ids))
+            if index not in retracted
+        )
+        backup_rule = not copy_holds_text and not leaked and readable
+
+    return {
+        "probe": probe,
+        "specificity": kept_messages and kept_memories,
+        "erasure": erased,
+        "rebuild": rebuild,
+        "backup": backup_rule,
+        "raw_file_still_holds": any(canaries[i].encode() in raw for i in retracted),
+        "dependents": dependents,
+        "queue_size": len(queued),
+        "rebuild_opportunities": opportunities,
+        "seed": seed,
+    }
 
 
-def run_trial(seed: int) -> dict:
+def run_trial(seed: int, fault=None) -> dict:
     trial = make_trial(seed)
-    first, second = run(trial), run(trial)
-    result = {key: value for key, value in first.items()}
-    result["determinism"] = {k: v for k, v in first.items()} == {k: v for k, v in second.items()}
+    first, second = run(trial, fault), run(trial, fault)
+    result = dict(first)
+    result["determinism"] = first == second
     return result
 
 
@@ -236,6 +356,13 @@ def summarise(trials: list) -> dict:
         "raw_file_still_holds": sum(trial["raw_file_still_holds"] for trial in trials),
         "dependents": sum(trial["dependents"] for trial in trials),
         "queue_size": sum(trial["queue_size"] for trial in trials),
+        "rebuild_opportunities": sum(trial["rebuild_opportunities"] for trial in trials),
+        "trials_with_rebuild_opportunity": sum(
+            trial["rebuild_opportunities"] > 0 for trial in trials
+        ),
+        "rebuild_failures_with_opportunity": sum(
+            trial["rebuild_opportunities"] > 0 and not trial["rebuild"] for trial in trials
+        ),
     }
 
 
@@ -273,8 +400,9 @@ def render(report: dict) -> str:
         "# Retraction canaries (H5)",
         "",
         "Synthetic, scripted data; no LLM. {} trials (seeds 0 to {}).".format(trials, trials - 1),
-        "Store under test: schema version {}; secure_delete: {}.".format(
-            report["store_schema_version"], report["store_secure_delete"]
+        "Store under test: schema version {}; secure_delete: {}{}.".format(
+            report["store_schema_version"], report["store_secure_delete"],
+            "; injected fault: {}".format(report["fault"]) if report.get("fault") else "",
         ),
         "See the docstring of `experiments/audience_retraction_canary.py` for the design",
         "and decision rule.",
@@ -284,9 +412,11 @@ def render(report: dict) -> str:
     ]
     rows = (
         (1, "Determinism: the same seed gives the same result"),
-        (2, "Probe: before retraction the scan finds every canary"),
+        (2, "Probe: before retraction the scan (and a plain backup copy) finds every canary"),
         (3, "Specificity: only memories derived from retracted messages change"),
         (4, "Erasure: no retracted canary in any stored value"),
+        (5, "Rebuild: rebuildable memories rebuilt from exactly their remaining sources"),
+        (6, "Backup: with a key file, an earlier copy yields no retracted canary"),
     )
     for number, text in rows:
         name = RULES[number]
@@ -305,7 +435,12 @@ def render(report: dict) -> str:
         "Reported, not part of the verdict:",
         "",
         "- Memories derived from a retracted message: {} (all trials); stale memories in the"
-        " rebuild queue: {}.".format(summary["dependents"], summary["queue_size"]),
+        " rebuild queue: {}; of those, with a remaining source to rebuild from: {} (in {}"
+        " trials); trials with such a memory where rebuild failed: {}.".format(
+            summary["dependents"], summary["queue_size"], summary["rebuild_opportunities"],
+            summary["trials_with_rebuild_opportunity"],
+            summary["rebuild_failures_with_opportunity"],
+        ),
         "- Trials in which the raw bytes of the database file still contain a retracted"
         " canary: {}. The scan of stored values reads live rows; SQLite can keep old bytes"
         " in free space and backups, which this experiment does not claim to erase.".format(
@@ -324,16 +459,18 @@ def render(report: dict) -> str:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--trials", type=int, default=DEFAULT_TRIALS)
+    parser.add_argument("--fault", choices=FAULTS)
     parser.add_argument(
         "--output", type=Path, default=ROOT / "experiments" / "results" / "audience_retraction_canary"
     )
     arguments = parser.parse_args(argv)
     if arguments.trials < 1:
         parser.error("--trials must be positive")
-    trials = [run_trial(seed) for seed in range(arguments.trials)]
+    trials = [run_trial(seed, arguments.fault) for seed in range(arguments.trials)]
     summary = summarise(trials)
     report = {
         "trials": arguments.trials,
+        "fault": arguments.fault,
         "store_schema_version": SCHEMA_VERSION,
         "store_secure_delete": getattr(
             MemoryStore(":memory:"), "secure_delete", "not available"

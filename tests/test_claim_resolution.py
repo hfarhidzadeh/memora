@@ -709,7 +709,7 @@ class ReadTimeResolutionTests(ClaimResolutionCase):
 
         reopened = MemoryStore(store.db_path)
         with reopened._transaction(write=False) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 6)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 7)
             rows = {
                 row["id"]: (row["archived_at"] is None, row["superseded_by"])
                 for row in connection.execute("SELECT * FROM memories")
