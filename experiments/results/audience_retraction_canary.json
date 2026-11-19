@@ -1,6 +1,7 @@
 {
   "trials": 500,
   "store_schema_version": 6,
+  "store_secure_delete": true,
   "summary": {
     "checks": {
       "determinism": {
@@ -20,7 +21,7 @@
         "not_held_seeds": []
       }
     },
-    "raw_file_still_holds": 495,
+    "raw_file_still_holds": 0,
     "dependents": 1320,
     "queue_size": 1259
   },

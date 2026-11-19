@@ -941,6 +941,28 @@ rows kept the retracted text, and `stale_memories()` returned it.
   through the list the caller supplies, so text copied into a memory that does
   not list the message is neither found nor tested.
 
+**Physical erasure follow-up, 2026-11-19.** The researcher asked to try SQLite's
+`secure_delete`.
+
+- **Change:** `MemoryStore(..., secure_delete=True)` is now the default, set on
+  every connection. Three tests: the file no longer holds a retracted word
+  (failed before), turning the setting off keeps the old behaviour, and the
+  memories that stay remain readable and searchable. A first version of the
+  first test passed before the change, because with a single message the bytes
+  happen to be overwritten; the test was rebuilt around rows written after the
+  retracted one, the case that leaked.
+- **Run 2** (same script, data, scan, checks and decision rule; the report now
+  names the setting; run 1 kept in
+  [retraction_canary_run1_superseded](../experiments/results/retraction_canary_run1_superseded/)):
+  all four rules held in 500 of 500 trials, and the raw bytes of the database
+  file held a retracted canary in **0 of 500** trials, against 495 of 500 in run
+  1. The prediction recorded before running ("few or none") held.
+- **What it covers and what it does not.** It overwrites deleted and replaced
+  bytes in the database file. It does not reach copies of the file made before a
+  retraction, backups, the rollback journal (deleted after each commit but not
+  scrubbed, and not scanned here), or the filesystem's own remnants. The
+  experiment scans live rows and the raw database file only.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every

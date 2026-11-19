@@ -266,6 +266,11 @@ class MemoryStore:
     Use ``for_writer`` for member writes. ``require_writer=True`` prevents
     direct writes through this administrative store instance.
 
+    ``secure_delete`` (default on) makes SQLite overwrite the bytes of deleted
+    and replaced rows, so retracted text does not linger in the database
+    file's free space. It does not reach backups, copies of the file made
+    earlier, or the filesystem's own remnants.
+
     Memories in a channel are never archived or superseded when written.
     Which keyed claim replaces which, and explicit ``supersedes`` links, are
     resolved at each read from the memories that read may use: visible to its
@@ -298,10 +303,12 @@ class MemoryStore:
         link_carryover: Union[LinkCarryover, str] = LinkCarryover.KEEP,
         require_viewers: bool = False,
         require_writer: bool = False,
+        secure_delete: bool = True,
     ) -> None:
         self.embedder = embedder
         self.require_viewers = require_viewers
         self.require_writer = require_writer
+        self.secure_delete = secure_delete
         try:
             self.link_carryover = LinkCarryover(link_carryover)
         except ValueError as error:
@@ -349,6 +356,11 @@ class MemoryStore:
         ) as connection:
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA foreign_keys = ON")
+            # Overwrite deleted and replaced bytes in the file, so a retracted
+            # text does not stay behind in free space. Set on every connection.
+            connection.execute(
+                "PRAGMA secure_delete = {}".format("ON" if self.secure_delete else "OFF")
+            )
             connection.execute("BEGIN IMMEDIATE" if write else "BEGIN")
             try:
                 yield connection

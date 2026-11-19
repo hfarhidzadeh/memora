@@ -548,6 +548,71 @@ class RetractionErasureTests(unittest.TestCase):
         )
 
 
+class SecureDeleteTests(unittest.TestCase):
+    """The database file must not keep the bytes of a retracted text (H5, physical)."""
+
+    CANARY = "canaryzk4"
+
+    def build(self, **options):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "secure.sqlite3"
+        store = MemoryStore(self.path, **options)
+        for member in ("alice", "bob"):
+            store.join_channel("design", member)
+        writer = store.for_writer("alice")
+        message = writer.add_message(
+            "launch code {} for friday and the rest of the plan".format(self.CANARY),
+            channel="design",
+        )
+        memory = writer.add_memory(
+            "summary of launch code {}".format(self.CANARY), FACT, channel="design",
+            memory_key="launch", source_message_ids=[message.id],
+        )
+        # Rows written afterwards: with only one message the bytes happen to be
+        # overwritten, but with later rows on the page the old bytes stay behind.
+        for index in range(3):
+            later = writer.add_message(
+                "filler number {} with some words".format(index), channel="design"
+            )
+            writer.add_memory(
+                "summary of filler {}".format(index), FACT, channel="design",
+                source_message_ids=[later.id],
+            )
+        return store, writer, message, memory
+
+    def test_the_file_no_longer_holds_a_retracted_word(self):
+        store, writer, message, memory = self.build()
+        self.assertTrue(self.CANARY.encode() in self.path.read_bytes())  # the scan can see it
+
+        writer.retract_message(message.id)
+
+        self.assertFalse(self.CANARY.encode() in self.path.read_bytes())
+
+    def test_turning_it_off_keeps_the_old_behaviour(self):
+        # Control: passed before the setting existed (the bytes stay in free space).
+        store, writer, message, memory = self.build(secure_delete=False)
+
+        writer.retract_message(message.id)
+
+        self.assertTrue(self.CANARY.encode() in self.path.read_bytes())
+
+    def test_memories_that_stay_are_still_readable_and_searchable(self):
+        # Control: passed before the change.
+        store, writer, message, memory = self.build()
+        other = writer.add_message("budget review is thursday", channel="design")
+        kept = writer.add_memory(
+            "budget review is thursday", FACT, channel="design", memory_key="budget",
+            source_message_ids=[other.id],
+        )
+
+        writer.retract_message(message.id)
+
+        self.assertEqual(store.get_memory(kept.id, viewers="bob").content, "budget review is thursday")
+        self.assertEqual([r.memory.id for r in store.search("budget", viewers="bob")], [kept.id])
+        self.assertEqual(store.get_message(other.id, viewers="bob").content, "budget review is thursday")
+
+
 class ReadTimeResolutionTests(ClaimResolutionCase):
     """What changes, besides the two fixes, once channel claims resolve at read time."""
 

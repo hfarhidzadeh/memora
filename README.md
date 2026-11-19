@@ -316,10 +316,12 @@ list with `sources_of(memory_id, include_stale=True)`.
 
 Existing memories without `source_message_ids` retain their previous behavior
 and cannot be invalidated through message retraction. Source messages are
-retrievable by ID, but are not yet indexed by text search. Tombstoning is a
-logical deletion: no live row keeps the retracted text, but SQLite free pages
-and backups retain older bytes (in the retraction experiment the raw database
-file still contained a retracted word in 99% of trials). When
+retrievable by ID, but are not yet indexed by text search. No live row keeps the
+retracted text, and with `secure_delete` (the default, `secure_delete=False` to
+turn it off) SQLite overwrites the bytes of deleted and replaced rows: in the
+retraction experiment the raw database file held a retracted word in 0 of 500
+trials, against 495 of 500 without it. Copies of the file made earlier,
+backups, rollback journals and the filesystem's own remnants are not covered. When
 deriving from another memory, the caller must carry forward its complete raw
 source-message list and preserve the parent's channel restrictions; the store
 does not track parent-memory dependencies or verify that source text supports

@@ -53,6 +53,17 @@ script is run unchanged against the store of commit 2114e4e, before derived
 text was cleared on retraction. It is judged able to detect the fault if rule 4
 fails in at least 95% of trials there.
 
+Runs. Run 1 (2026-11-19) was on the store that cleared derived text but did not
+overwrite deleted bytes: rules 1 to 4 held in 500 of 500 trials, and the raw
+file still held a retracted canary in 495 of 500 (reports in
+``experiments/results/retraction_canary_run1_superseded/``). The store then
+gained ``secure_delete`` (on by default; SQLite overwrites deleted and replaced
+bytes). Nothing else changed: the script's data, scan, checks and decision
+rule are those of run 1, and the report now also names the store's
+``secure_delete`` setting. Expected before run 2 (a prediction, not a rule): the
+raw file holds a retracted canary in few or none of the trials; some residue is
+possible, for example in pages that were freed before a later overwrite.
+
 Default: 500 trials (seeds 0 to 499).
 
 Run from the project root:
@@ -262,7 +273,9 @@ def render(report: dict) -> str:
         "# Retraction canaries (H5)",
         "",
         "Synthetic, scripted data; no LLM. {} trials (seeds 0 to {}).".format(trials, trials - 1),
-        "Store under test: schema version {}.".format(report["store_schema_version"]),
+        "Store under test: schema version {}; secure_delete: {}.".format(
+            report["store_schema_version"], report["store_secure_delete"]
+        ),
         "See the docstring of `experiments/audience_retraction_canary.py` for the design",
         "and decision rule.",
         "",
@@ -322,6 +335,9 @@ def main(argv=None) -> int:
     report = {
         "trials": arguments.trials,
         "store_schema_version": SCHEMA_VERSION,
+        "store_secure_delete": getattr(
+            MemoryStore(":memory:"), "secure_delete", "not available"
+        ),
         "summary": summary,
         "decision": decide(summary, arguments.trials),
     }

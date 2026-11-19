@@ -88,7 +88,8 @@ flowchart LR
 - **Guards.** `require_viewers=True` makes the store's own read methods refuse
   an omitted audience, and `require_writer=True` makes `add_memory` and
   `add_message` refuse direct calls. Both are settings of one store instance,
-  not of the database file.
+  not of the database file. `secure_delete` (default on) is another per-store
+  setting: it makes SQLite overwrite deleted and replaced bytes.
 - **Embedders** turn text into vectors. The store treats them as a protocol: a
   `name`, a `min_similarity`, and a call that maps texts to vectors.
 - **evaluation.py** builds a store from a labelled set, runs queries, and
@@ -333,8 +334,10 @@ injected fault is detected, so a passing experiment means something.
 - Write authentication and process isolation.
 - A standalone dispute table (disputes appear as `claim_status` and links).
 - Automatic regeneration of stale derived memories.
-- Physical erasure from SQLite backups and free pages: no live row keeps
-  retracted text, but the raw file still did in 99% of experiment trials.
+- Erasure from earlier copies of the database file, backups, rollback journals
+  and filesystem remnants. Within the file itself, `secure_delete` (default on)
+  overwrites deleted bytes: the raw file held a retracted canary in 0 of 500
+  experiment trials.
 - Who-knows-what, from the design document.
 - Channel, viewer and message options in the CLI.
 - Semantic conflict detection and automatic update detection.
