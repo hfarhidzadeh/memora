@@ -1,5 +1,9 @@
 """Knowledge updates on LongMemEval: should links carry over to a fact's new version?
 
+Status: provisional. The 2026-11-19 review in docs/longmemeval_label_review.md
+found category and conversion issues. The original labels and design below
+are retained for reproducibility, not as validated update ground truth.
+
 Question. When a newer version of a fact replaces the old one, should the old
 version's links move to the new version? Three options:
 
@@ -395,6 +399,8 @@ def main():
 
     suite_path = Path(args.suite).resolve()
     report = {
+        "result_status": "provisional_pending_label_and_conversion_corrections",
+        "label_review": "docs/longmemeval_label_review.md",
         "suite": str(
             suite_path.relative_to(ROOT) if ROOT in suite_path.parents else suite_path
         ),

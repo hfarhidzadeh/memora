@@ -1,0 +1,1497 @@
+{
+  "review_date": "2026-11-19",
+  "reviewer": "Codex (AI review; not human adjudication)",
+  "status": "review_complete_corrections_not_applied_results_provisional",
+  "source": "data/longmemeval/longmemeval_s_cleaned.json",
+  "source_sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "original_labels_sha256": "132d4c95d215c250072bdaaddb14c37a6d510f1df8cd69ecb53ba0f2cafcc0e9",
+  "scope": "All 70 labelled questions, benchmark answers, marked user evidence and session/question timestamps. Surrounding user turns checked for ambiguous cases; oracle sessions used as a cross-check, not a replacement for cleaned data. Not an exhaustive annotation of every unmarked turn or distractor.",
+  "counts": {
+    "confirmed": 57,
+    "revise_category": 3,
+    "confirmed_with_caveat": 2,
+    "conversion_or_evidence_issue": 8
+  },
+  "reviews": {
+    "6a1eabeb": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What was my personal best time in the charity 5K run?",
+      "benchmark_answer": "25 minutes and 50 seconds (or 25:50)",
+      "question_date": "2023/06/25 (Sun) 13:22",
+      "evidence": [
+        {
+          "id": "answer_a25d4a91_1:4",
+          "date": "2023/05/23 (Tue) 13:01",
+          "role": "user"
+        },
+        {
+          "id": "answer_a25d4a91_2:0",
+          "date": "2023/05/30 (Tue) 13:53",
+          "role": "user"
+        }
+      ],
+      "rationale": "5K personal best 27:12 -> 25:50"
+    },
+    "6aeb4375": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many Korean restaurants have I tried in my city?",
+      "benchmark_answer": "four",
+      "question_date": "2023/10/22 (Sun) 15:38",
+      "evidence": [
+        {
+          "id": "answer_3f9693b7_1:8",
+          "date": "2023/08/11 (Fri) 09:09",
+          "role": "user"
+        },
+        {
+          "id": "answer_3f9693b7_2:2",
+          "date": "2023/09/30 (Sat) 15:06",
+          "role": "user"
+        }
+      ],
+      "rationale": "Korean restaurants tried 3 -> 4"
+    },
+    "830ce83f": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "Where did Rachel move to after her recent relocation?",
+      "benchmark_answer": "the suburbs",
+      "question_date": "2023/06/13 (Tue) 15:15",
+      "evidence": [
+        {
+          "id": "answer_0b1a0942_1:2",
+          "date": "2023/05/24 (Wed) 22:23",
+          "role": "user"
+        },
+        {
+          "id": "answer_0b1a0942_1:4",
+          "date": "2023/05/24 (Wed) 22:23",
+          "role": "user"
+        },
+        {
+          "id": "answer_0b1a0942_2:2",
+          "date": "2023/05/27 (Sat) 04:45",
+          "role": "user"
+        }
+      ],
+      "rationale": "Rachel moved to Chicago -> back to the suburbs (two older turns)"
+    },
+    "852ce960": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What was the amount I was pre-approved for when I got my mortgage from Wells Fargo?",
+      "benchmark_answer": "$400,000",
+      "question_date": "2023/12/18 (Mon) 04:17",
+      "evidence": [
+        {
+          "id": "answer_3a6f1e82_1:2",
+          "date": "2023/08/11 (Fri) 00:01",
+          "role": "user"
+        },
+        {
+          "id": "answer_3a6f1e82_2:0",
+          "date": "2023/11/30 (Thu) 00:36",
+          "role": "user"
+        }
+      ],
+      "rationale": "Wells Fargo pre-approval $350,000 -> $400,000"
+    },
+    "945e3d21": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How often do I attend yoga classes to help with my anxiety?",
+      "benchmark_answer": "Three times a week.",
+      "question_date": "2023/12/14 (Thu) 06:32",
+      "evidence": [
+        {
+          "id": "answer_6a4f8626_1:4",
+          "date": "2023/08/11 (Fri) 05:12",
+          "role": "user"
+        },
+        {
+          "id": "answer_6a4f8626_2:2",
+          "date": "2023/11/30 (Thu) 03:29",
+          "role": "user"
+        }
+      ],
+      "rationale": "yoga twice -> three times a week"
+    },
+    "d7c942c3": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "Is my mom using the same grocery list method as me?",
+      "benchmark_answer": "Yes.",
+      "question_date": "2023/05/14 (Sun) 09:58",
+      "evidence": [
+        {
+          "id": "answer_eecb10d9_1:8",
+          "date": "2023/03/11 (Sat) 12:42",
+          "role": "user"
+        },
+        {
+          "id": "answer_eecb10d9_2:4",
+          "date": "2023/04/30 (Sun) 20:09",
+          "role": "user"
+        }
+      ],
+      "rationale": "mom on a paper list -> same app as me"
+    },
+    "71315a70": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many hours have I spent on my abstract ocean sculpture?",
+      "benchmark_answer": "10-12 hours",
+      "question_date": "2023/06/18 (Sun) 19:47",
+      "evidence": [
+        {
+          "id": "answer_c44b9df4_1:4",
+          "date": "2023/06/11 (Sun) 03:51",
+          "role": "user"
+        },
+        {
+          "id": "answer_c44b9df4_2:0",
+          "date": "2023/06/17 (Sat) 09:26",
+          "role": "user"
+        }
+      ],
+      "rationale": "ocean sculpture 5-6 -> 10-12 hours"
+    },
+    "89941a93": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many bikes do I currently own?",
+      "benchmark_answer": "4",
+      "question_date": "2023/10/27 (Fri) 13:00",
+      "evidence": [
+        {
+          "id": "answer_e1403127_1:4",
+          "date": "2023/02/22 (Wed) 20:54",
+          "role": "user"
+        },
+        {
+          "id": "answer_e1403127_2:4",
+          "date": "2023/10/10 (Tue) 01:12",
+          "role": "user"
+        }
+      ],
+      "rationale": "bikes owned 3 -> 4"
+    },
+    "ce6d2d27": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What day of the week do I take a cocktail-making class?",
+      "benchmark_answer": "Friday",
+      "question_date": "2023/07/15 (Sat) 22:19",
+      "evidence": [
+        {
+          "id": "answer_73540165_1:4",
+          "date": "2023/06/16 (Fri) 13:26",
+          "role": "user"
+        },
+        {
+          "id": "answer_73540165_2:0",
+          "date": "2023/06/30 (Fri) 22:49",
+          "role": "user"
+        }
+      ],
+      "rationale": "cocktail class Thursday -> Friday"
+    },
+    "a1eacc2a": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many short stories have I written since I started writing regularly?",
+      "benchmark_answer": "seven",
+      "question_date": "2023/06/20 (Tue) 17:03",
+      "evidence": [
+        {
+          "id": "answer_0eb23770_1:2",
+          "date": "2023/05/23 (Tue) 18:21",
+          "role": "user"
+        },
+        {
+          "id": "answer_0eb23770_2:0",
+          "date": "2023/05/30 (Tue) 08:43",
+          "role": "user"
+        }
+      ],
+      "rationale": "short stories 4 -> 7"
+    },
+    "184da446": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many pages of 'A Short History of Nearly Everything' have I read so far?",
+      "benchmark_answer": "220",
+      "question_date": "2023/06/17 (Sat) 04:02",
+      "evidence": [
+        {
+          "id": "answer_e2f4f947_1:0",
+          "date": "2023/05/20 (Sat) 21:24",
+          "role": "user"
+        },
+        {
+          "id": "answer_e2f4f947_2:0",
+          "date": "2023/05/29 (Mon) 09:12",
+          "role": "user"
+        }
+      ],
+      "rationale": "book page 200 -> 220"
+    },
+    "4d6b87c8": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many titles are currently on my to-watch list?",
+      "benchmark_answer": "25",
+      "question_date": "2023/06/03 (Sat) 15:47",
+      "evidence": [
+        {
+          "id": "answer_766ab8da_1:2",
+          "date": "2023/05/20 (Sat) 10:19",
+          "role": "user"
+        },
+        {
+          "id": "answer_766ab8da_2:2",
+          "date": "2023/05/22 (Mon) 03:27",
+          "role": "user"
+        }
+      ],
+      "rationale": "to-watch list 20 -> 25 titles"
+    },
+    "0f05491a": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many stars do I need to reach the gold level on my Starbucks Rewards app?",
+      "benchmark_answer": 120,
+      "question_date": "2023/08/01 (Tue) 22:29",
+      "evidence": [
+        {
+          "id": "answer_d6d2eba8_1:10",
+          "date": "2023/07/11 (Tue) 00:07",
+          "role": "user"
+        },
+        {
+          "id": "answer_d6d2eba8_2:6",
+          "date": "2023/07/30 (Sun) 02:08",
+          "role": "user"
+        }
+      ],
+      "rationale": "Starbucks gold level 125 -> 120 stars (correction)"
+    },
+    "08e075c7": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How long have I been using my Fitbit Charge 3?",
+      "benchmark_answer": "9 months",
+      "question_date": "2023/09/04 (Mon) 17:07",
+      "evidence": [
+        {
+          "id": "answer_cdbe2250_1:2",
+          "date": "2023/06/18 (Sun) 00:59",
+          "role": "user"
+        },
+        {
+          "id": "answer_cdbe2250_2:2",
+          "date": "2023/09/02 (Sat) 01:13",
+          "role": "user"
+        }
+      ],
+      "rationale": "Fitbit 6 -> 9 months"
+    },
+    "f9e8c073": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many sessions of the bereavement support group did I attend?",
+      "benchmark_answer": "five",
+      "question_date": "2023/11/07 (Tue) 04:54",
+      "evidence": [
+        {
+          "id": "answer_b191df5b_1:4",
+          "date": "2023/05/11 (Thu) 02:24",
+          "role": "user"
+        },
+        {
+          "id": "answer_b191df5b_2:6",
+          "date": "2023/10/30 (Mon) 07:19",
+          "role": "user"
+        }
+      ],
+      "rationale": "bereavement sessions 3 -> 5"
+    },
+    "2698e78f": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How often do I see my therapist, Dr. Smith?",
+      "benchmark_answer": "every week",
+      "question_date": "2023/11/10 (Fri) 00:38",
+      "evidence": [
+        {
+          "id": "answer_9282283d_1:2",
+          "date": "2023/04/03 (Mon) 14:18",
+          "role": "user"
+        },
+        {
+          "id": "answer_9282283d_2:4",
+          "date": "2023/11/03 (Fri) 19:56",
+          "role": "user"
+        }
+      ],
+      "rationale": "therapist every two weeks -> every week"
+    },
+    "b6019101": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many MCU films did I watch in the last 3 months?",
+      "benchmark_answer": "5",
+      "question_date": "2023/06/17 (Sat) 16:20",
+      "evidence": [
+        {
+          "id": "answer_67074b4b_1:4",
+          "date": "2023/05/20 (Sat) 04:54",
+          "role": "user"
+        },
+        {
+          "id": "answer_67074b4b_2:0",
+          "date": "2023/05/29 (Mon) 02:47",
+          "role": "user"
+        }
+      ],
+      "rationale": "MCU films 4 -> 5"
+    },
+    "45dc21b6": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many of Emma's recipes have I tried out?",
+      "benchmark_answer": "3",
+      "question_date": "2023/06/16 (Fri) 17:33",
+      "evidence": [
+        {
+          "id": "answer_07664d43_1:0",
+          "date": "2023/05/29 (Mon) 04:51",
+          "role": "user"
+        },
+        {
+          "id": "answer_07664d43_2:2",
+          "date": "2023/05/30 (Tue) 06:32",
+          "role": "user"
+        }
+      ],
+      "rationale": "Emma's recipes tried 2 -> 3"
+    },
+    "e493bb7c": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "Where is the painting 'Ethereal Dreams' by Emma Taylor currently hanging?",
+      "benchmark_answer": "in my bedroom",
+      "question_date": "2023/11/18 (Sat) 19:24",
+      "evidence": [
+        {
+          "id": "answer_1a374afa_1:4",
+          "date": "2023/07/11 (Tue) 09:13",
+          "role": "user"
+        },
+        {
+          "id": "answer_1a374afa_2:6",
+          "date": "2023/10/30 (Mon) 16:38",
+          "role": "user"
+        }
+      ],
+      "rationale": "painting above the living-room sofa -> above the bed"
+    },
+    "72e3ee87": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many episodes of the Science series have I completed on Crash Course?",
+      "benchmark_answer": "50",
+      "question_date": "2023/06/27 (Tue) 19:26",
+      "evidence": [
+        {
+          "id": "answer_d7de9a6a_1:0",
+          "date": "2023/05/24 (Wed) 01:00",
+          "role": "user"
+        },
+        {
+          "id": "answer_d7de9a6a_2:8",
+          "date": "2023/05/29 (Mon) 03:31",
+          "role": "user"
+        }
+      ],
+      "rationale": "Crash Course science episode 10 -> 50"
+    },
+    "01493427": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many new postcards have I added to my collection since I started collecting again?",
+      "benchmark_answer": "25",
+      "question_date": "2023/12/21 (Thu) 21:31",
+      "evidence": [
+        {
+          "id": "answer_a7b44747_1:6",
+          "date": "2023/08/11 (Fri) 15:58",
+          "role": "user"
+        },
+        {
+          "id": "answer_a7b44747_2:6",
+          "date": "2023/11/30 (Thu) 18:35",
+          "role": "user"
+        }
+      ],
+      "rationale": "postcards 17 -> 25"
+    },
+    "6a27ffc2": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many videos of Corey Schafer's Python programming series have I completed so far?",
+      "benchmark_answer": "30",
+      "question_date": "2023/06/09 (Fri) 01:44",
+      "evidence": [
+        {
+          "id": "answer_77f32504_1:0",
+          "date": "2023/05/24 (Wed) 18:34",
+          "role": "user"
+        },
+        {
+          "id": "answer_77f32504_2:2",
+          "date": "2023/05/26 (Fri) 00:03",
+          "role": "user"
+        }
+      ],
+      "rationale": "Corey Schafer videos 20 -> 30"
+    },
+    "2133c1b5": {
+      "original_category": "current",
+      "recommended_category": "exclude",
+      "status": "revise_category",
+      "question": "How long have I been living in my current apartment in Harajuku?",
+      "benchmark_answer": "3 months",
+      "question_date": "2023/10/15 (Sun) 08:39",
+      "evidence": [
+        {
+          "id": "answer_52382508_1:4",
+          "date": "2023/04/11 (Tue) 08:03",
+          "role": "user"
+        },
+        {
+          "id": "answer_52382508_2:2",
+          "date": "2023/10/15 (Sun) 20:50",
+          "role": "user"
+        }
+      ],
+      "rationale": "The answer-bearing session is 2023/10/15 20:50, after the question at 08:39 that day. Exclude from a chronological evaluation unless source timestamps are repaired. The original note already notices this issue but still includes it in the primary group."
+    },
+    "18bc8abd": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What brand of BBQ sauce am I currently obsessed with?",
+      "benchmark_answer": "Kansas City Masterpiece",
+      "question_date": "2023/07/15 (Sat) 07:37",
+      "evidence": [
+        {
+          "id": "answer_fff743f5_1:2",
+          "date": "2023/04/16 (Sun) 02:28",
+          "role": "user"
+        },
+        {
+          "id": "answer_fff743f5_2:0",
+          "date": "2023/06/30 (Fri) 05:15",
+          "role": "user"
+        }
+      ],
+      "rationale": "BBQ sauce Sweet Baby Ray's -> Kansas City Masterpiece"
+    },
+    "db467c8c": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How long have my parents been staying with me in the US?",
+      "benchmark_answer": "nine months",
+      "question_date": "2023/10/22 (Sun) 09:15",
+      "evidence": [
+        {
+          "id": "answer_611b6e83_1:2",
+          "date": "2023/07/16 (Sun) 07:07",
+          "role": "user"
+        },
+        {
+          "id": "answer_611b6e83_2:0",
+          "date": "2023/10/20 (Fri) 00:00",
+          "role": "user"
+        }
+      ],
+      "rationale": "parents staying 6 -> 9 months"
+    },
+    "7a87bd0c": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How long have I been sticking to my daily tidying routine?",
+      "benchmark_answer": "4 weeks",
+      "question_date": "2023/09/30 (Sat) 23:15",
+      "evidence": [
+        {
+          "id": "answer_d08a934d_1:0",
+          "date": "2023/06/11 (Sun) 22:24",
+          "role": "user"
+        },
+        {
+          "id": "answer_d08a934d_2:0",
+          "date": "2023/09/30 (Sat) 17:52",
+          "role": "user"
+        }
+      ],
+      "rationale": "tidying routine 3 -> 4 weeks"
+    },
+    "e61a7584": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How long have I had my cat, Luna?",
+      "benchmark_answer": "9 months",
+      "question_date": "2023/11/30 (Thu) 12:46",
+      "evidence": [
+        {
+          "id": "answer_f25c32f5_1:10",
+          "date": "2023/08/11 (Fri) 16:53",
+          "role": "user"
+        },
+        {
+          "id": "answer_f25c32f5_2:6",
+          "date": "2023/11/30 (Thu) 10:31",
+          "role": "user"
+        }
+      ],
+      "rationale": "cat Luna 6 -> 9 months"
+    },
+    "1cea1afa": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many Instagram followers do I currently have?",
+      "benchmark_answer": "600",
+      "question_date": "2023/06/14 (Wed) 13:43",
+      "evidence": [
+        {
+          "id": "answer_79c395a9_1:0",
+          "date": "2023/05/27 (Sat) 07:39",
+          "role": "user"
+        },
+        {
+          "id": "answer_79c395a9_2:0",
+          "date": "2023/05/28 (Sun) 22:57",
+          "role": "user"
+        }
+      ],
+      "rationale": "Instagram followers 500 -> 600"
+    },
+    "ed4ddc30": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many dozen eggs do we currently have stocked up in our refrigerator?",
+      "benchmark_answer": "20",
+      "question_date": "2023/03/16 (Thu) 14:24",
+      "evidence": [
+        {
+          "id": "answer_babbaccb_1:2",
+          "date": "2023/01/11 (Wed) 23:15",
+          "role": "user"
+        },
+        {
+          "id": "answer_babbaccb_2:2",
+          "date": "2023/03/15 (Wed) 08:18",
+          "role": "user"
+        }
+      ],
+      "rationale": "eggs 30 -> 20 dozen"
+    },
+    "8fb83627": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many issues of National Geographic have I finished reading?",
+      "benchmark_answer": "Five",
+      "question_date": "2023/08/14 (Mon) 23:19",
+      "evidence": [
+        {
+          "id": "answer_966cecbb_1:2",
+          "date": "2023/04/20 (Thu) 21:08",
+          "role": "user"
+        },
+        {
+          "id": "answer_966cecbb_1:10",
+          "date": "2023/04/20 (Thu) 21:08",
+          "role": "user"
+        },
+        {
+          "id": "answer_966cecbb_2:6",
+          "date": "2023/07/15 (Sat) 22:42",
+          "role": "user"
+        }
+      ],
+      "rationale": "National Geographic issues 3 -> 5 (two older turns)"
+    },
+    "b01defab": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "Did I finish reading 'The Nightingale' by Kristin Hannah?",
+      "benchmark_answer": "Yes",
+      "question_date": "2023/04/12 (Wed) 06:37",
+      "evidence": [
+        {
+          "id": "answer_8c0712af_1:2",
+          "date": "2023/01/21 (Sat) 15:05",
+          "role": "user"
+        },
+        {
+          "id": "answer_8c0712af_2:0",
+          "date": "2023/03/30 (Thu) 01:14",
+          "role": "user"
+        }
+      ],
+      "rationale": "The Nightingale put down -> finished"
+    },
+    "0e4e4c46": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What is my current highest score in Ticket to Ride?",
+      "benchmark_answer": "132 points",
+      "question_date": "2023/06/10 (Sat) 16:46",
+      "evidence": [
+        {
+          "id": "answer_f2f998c7_1:2",
+          "date": "2023/05/23 (Tue) 03:08",
+          "role": "user"
+        },
+        {
+          "id": "answer_f2f998c7_2:8",
+          "date": "2023/05/25 (Thu) 22:16",
+          "role": "user"
+        }
+      ],
+      "rationale": "Ticket to Ride best 124 -> 132"
+    },
+    "4b24c848": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many tops have I bought from H&M so far?",
+      "benchmark_answer": "five",
+      "question_date": "2023/10/20 (Fri) 08:09",
+      "evidence": [
+        {
+          "id": "answer_2cec623b_1:4",
+          "date": "2023/08/11 (Fri) 03:18",
+          "role": "user"
+        },
+        {
+          "id": "answer_2cec623b_2:0",
+          "date": "2023/09/30 (Sat) 06:40",
+          "role": "user"
+        }
+      ],
+      "rationale": "H&M tops 3 -> 5"
+    },
+    "603deb26": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many times have I tried making a Negroni at home since my friend Emma showed me how to make it?",
+      "benchmark_answer": "10",
+      "question_date": "2023/12/05 (Tue) 02:37",
+      "evidence": [
+        {
+          "id": "answer_8afdebac_1:4",
+          "date": "2023/08/11 (Fri) 17:11",
+          "role": "user"
+        },
+        {
+          "id": "answer_8afdebac_2:0",
+          "date": "2023/11/30 (Thu) 01:59",
+          "role": "user"
+        }
+      ],
+      "rationale": "Negroni attempts 5 -> 10"
+    },
+    "59524333": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What time do I usually go to the gym?",
+      "benchmark_answer": "6:00 pm",
+      "question_date": "2023/06/06 (Tue) 16:35",
+      "evidence": [
+        {
+          "id": "answer_b28f2c7a_1:4",
+          "date": "2023/02/11 (Sat) 07:00",
+          "role": "user"
+        },
+        {
+          "id": "answer_b28f2c7a_2:4",
+          "date": "2023/05/30 (Tue) 07:52",
+          "role": "user"
+        }
+      ],
+      "rationale": "gym time 7:00 pm -> 6:00 pm"
+    },
+    "5831f84d": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many Crash Course videos have I watched in the past few weeks?",
+      "benchmark_answer": "15",
+      "question_date": "2023/10/05 (Thu) 05:19",
+      "evidence": [
+        {
+          "id": "answer_8d63a897_1:0",
+          "date": "2023/08/11 (Fri) 13:55",
+          "role": "user"
+        },
+        {
+          "id": "answer_8d63a897_2:0",
+          "date": "2023/09/30 (Sat) 17:18",
+          "role": "user"
+        }
+      ],
+      "rationale": "Crash Course videos 10 -> 15"
+    },
+    "affe2881": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many different species of birds have I seen in my local park?",
+      "benchmark_answer": "32",
+      "question_date": "2023/06/07 (Wed) 02:42",
+      "evidence": [
+        {
+          "id": "answer_90de9b4d_1:4",
+          "date": "2023/05/24 (Wed) 01:31",
+          "role": "user"
+        },
+        {
+          "id": "answer_90de9b4d_2:2",
+          "date": "2023/05/29 (Mon) 17:18",
+          "role": "user"
+        }
+      ],
+      "rationale": "bird species 27 -> 32"
+    },
+    "cc5ded98": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How much time do I dedicate to coding exercises each day?",
+      "benchmark_answer": "about two hours",
+      "question_date": "2023/06/13 (Tue) 01:30",
+      "evidence": [
+        {
+          "id": "answer_a5b68517_1:4",
+          "date": "2023/05/20 (Sat) 09:04",
+          "role": "user"
+        },
+        {
+          "id": "answer_a5b68517_2:0",
+          "date": "2023/05/29 (Mon) 01:53",
+          "role": "user"
+        }
+      ],
+      "rationale": "coding 1 -> 2 hours a day"
+    },
+    "7401057b": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many free night's stays can I redeem at any Hilton property with my accumulated points?",
+      "benchmark_answer": "Two",
+      "question_date": "2023/06/16 (Fri) 09:50",
+      "evidence": [
+        {
+          "id": "answer_94650bfa_1:4",
+          "date": "2023/05/29 (Mon) 16:25",
+          "role": "user"
+        },
+        {
+          "id": "answer_94650bfa_2:0",
+          "date": "2023/05/30 (Tue) 12:28",
+          "role": "user"
+        }
+      ],
+      "rationale": "Hilton free nights 1 -> 2"
+    },
+    "cf22b7bf": {
+      "original_category": "current",
+      "recommended_category": "context",
+      "status": "revise_category",
+      "question": "How much weight have I lost since I started going to the gym consistently?",
+      "benchmark_answer": "10 pounds",
+      "question_date": "2023/06/23 (Fri) 03:15",
+      "evidence": [
+        {
+          "id": "answer_ae3a122b_1:8",
+          "date": "2023/05/21 (Sun) 12:29",
+          "role": "user"
+        },
+        {
+          "id": "answer_ae3a122b_2:2",
+          "date": "2023/06/21 (Wed) 05:37",
+          "role": "user"
+        }
+      ],
+      "rationale": "Five pounds in the past month and ten pounds since starting the gym three months ago measure different intervals. The earlier turn does not give an older total for the asked interval, so treating it as stale is unsupported."
+    },
+    "a2f3aa27": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed_with_caveat",
+      "question": "How many followers do I have on Instagram now?",
+      "benchmark_answer": 1300,
+      "question_date": "2023/06/15 (Thu) 23:26",
+      "evidence": [
+        {
+          "id": "answer_5126c02d_1:2",
+          "date": "2023/05/25 (Thu) 05:26",
+          "role": "user"
+        },
+        {
+          "id": "answer_5126c02d_2:0",
+          "date": "2023/05/25 (Thu) 09:28",
+          "role": "user"
+        }
+      ],
+      "rationale": "Current is supported, but the newer turn says the user thinks the count is close to 1300. The benchmark answer rounds this to 1300. Preserve the approximation; do not treat it as a verified exact count."
+    },
+    "c7dc5443": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What is my current record in the recreational volleyball league?",
+      "benchmark_answer": "5-2",
+      "question_date": "2023/07/21 (Fri) 20:30",
+      "evidence": [
+        {
+          "id": "answer_0cdbca92_1:0",
+          "date": "2023/06/16 (Fri) 12:33",
+          "role": "user"
+        },
+        {
+          "id": "answer_0cdbca92_2:0",
+          "date": "2023/06/30 (Fri) 14:20",
+          "role": "user"
+        }
+      ],
+      "rationale": "volleyball record 3-2 -> 5-2"
+    },
+    "06db6396": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many projects have I completed since starting painting classes?",
+      "benchmark_answer": "5",
+      "question_date": "2023/11/08 (Wed) 09:08",
+      "evidence": [
+        {
+          "id": "answer_da72b1b4_1:4",
+          "date": "2023/08/16 (Wed) 09:37",
+          "role": "user"
+        },
+        {
+          "id": "answer_da72b1b4_2:0",
+          "date": "2023/10/09 (Mon) 07:00",
+          "role": "user"
+        }
+      ],
+      "rationale": "painting projects 4 -> 5"
+    },
+    "3ba21379": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What type of vehicle model am I currently working on?",
+      "benchmark_answer": "Ford F-150 pickup truck",
+      "question_date": "2023/06/01 (Thu) 05:09",
+      "evidence": [
+        {
+          "id": "answer_cd345582_1:0",
+          "date": "2023/05/20 (Sat) 15:14",
+          "role": "user"
+        },
+        {
+          "id": "answer_cd345582_2:2",
+          "date": "2023/05/26 (Fri) 04:47",
+          "role": "user"
+        }
+      ],
+      "rationale": "model in progress Mustang -> F-150"
+    },
+    "dad224aa": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "What time do I wake up on Saturday mornings?",
+      "benchmark_answer": "7:30 am",
+      "question_date": "2023/06/24 (Sat) 03:58",
+      "evidence": [
+        {
+          "id": "answer_4a97ae40_1:2",
+          "date": "2023/05/23 (Tue) 14:12",
+          "role": "user"
+        },
+        {
+          "id": "answer_4a97ae40_2:2",
+          "date": "2023/05/27 (Sat) 02:31",
+          "role": "user"
+        }
+      ],
+      "rationale": "Saturday wake-up 8:30 -> 7:30 am"
+    },
+    "ba61f0b9": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many women are on the team led by my former manager Rachel?",
+      "benchmark_answer": "6",
+      "question_date": "2023/08/03 (Thu) 06:02",
+      "evidence": [
+        {
+          "id": "answer_f377cda7_1:2",
+          "date": "2023/01/18 (Wed) 13:09",
+          "role": "user"
+        },
+        {
+          "id": "answer_f377cda7_2:0",
+          "date": "2023/07/20 (Thu) 16:38",
+          "role": "user"
+        }
+      ],
+      "rationale": "women on Rachel's team 5 -> 6"
+    },
+    "42ec0761": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed_with_caveat",
+      "question": "Do I have a spare screwdriver for opening up my laptop?",
+      "benchmark_answer": "Yes",
+      "question_date": "2023/08/31 (Thu) 00:39",
+      "evidence": [
+        {
+          "id": "answer_e3892371_1:4",
+          "date": "2023/08/11 (Fri) 07:22",
+          "role": "user"
+        },
+        {
+          "id": "answer_e3892371_2:6",
+          "date": "2023/08/15 (Tue) 13:22",
+          "role": "user"
+        }
+      ],
+      "rationale": "Current is defensible for usable-tool availability: the user first needs to buy a screwdriver and later has a spare. It does not establish that the lost screwdriver was found or that no spare existed earlier. Keep only with that availability interpretation; a strict spare-ownership interpretation would be context."
+    },
+    "5c40ec5b": {
+      "original_category": "current",
+      "recommended_category": "context",
+      "status": "revise_category",
+      "question": "How many times have I met up with Alex from Germany?",
+      "benchmark_answer": "We've met up twice.",
+      "question_date": "2023/10/30 (Mon) 13:39",
+      "evidence": [
+        {
+          "id": "answer_1cb52d0a_1:6",
+          "date": "2023/08/11 (Fri) 08:32",
+          "role": "user"
+        },
+        {
+          "id": "answer_1cb52d0a_2:0",
+          "date": "2023/09/30 (Sat) 12:23",
+          "role": "user"
+        }
+      ],
+      "rationale": "The earlier turn records meeting Alex at a festival, without an exact cumulative meetup count. The later turn states two meetups and repeats the festival meeting. Do not infer an earlier count of exactly one or archive the still-true meeting event."
+    },
+    "26bdc477": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "How many trips have I taken my Canon EOS 80D camera on?",
+      "benchmark_answer": "five",
+      "question_date": "2023/06/06 (Tue) 18:27",
+      "evidence": [
+        {
+          "id": "answer_f762ad8d_1:2",
+          "date": "2023/03/16 (Thu) 19:05",
+          "role": "user"
+        },
+        {
+          "id": "answer_f762ad8d_2:0",
+          "date": "2023/05/30 (Tue) 00:43",
+          "role": "user"
+        }
+      ],
+      "rationale": "Canon trips 3 -> 5"
+    },
+    "07741c45": {
+      "original_category": "current",
+      "recommended_category": "current",
+      "status": "confirmed",
+      "question": "Where do I currently keep my old sneakers?",
+      "benchmark_answer": "in a shoe rack in my closet",
+      "question_date": "2023/06/23 (Fri) 07:31",
+      "evidence": [
+        {
+          "id": "answer_7e9ad7b4_1:2",
+          "date": "2023/05/25 (Thu) 10:04",
+          "role": "user"
+        },
+        {
+          "id": "answer_7e9ad7b4_2:0",
+          "date": "2023/05/29 (Mon) 15:01",
+          "role": "user"
+        }
+      ],
+      "rationale": "old sneakers under the bed -> shoe rack in the closet"
+    },
+    "07741c44": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "confirmed",
+      "question": "Where do I initially keep my old sneakers?",
+      "benchmark_answer": "under my bed",
+      "question_date": "2023/11/30 (Thu) 23:52",
+      "evidence": [
+        {
+          "id": "answer_7e9ad7b4_1:2",
+          "date": "2023/08/11 (Fri) 02:38",
+          "role": "user"
+        },
+        {
+          "id": "answer_7e9ad7b4_2:0",
+          "date": "2023/11/30 (Thu) 11:44",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks where the sneakers were initially kept (under the bed)"
+    },
+    "50635ada": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "confirmed",
+      "question": "What was my previous frequent flyer status on United Airlines before I got the current status?",
+      "benchmark_answer": "Premier Silver",
+      "question_date": "2023/06/29 (Thu) 04:09",
+      "evidence": [
+        {
+          "id": "answer_dcd74827_1:4",
+          "date": "2022/09/16 (Fri) 17:22",
+          "role": "user"
+        },
+        {
+          "id": "answer_dcd74827_2:2",
+          "date": "2023/05/30 (Tue) 08:58",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks for the previous flyer status (Premier Silver)"
+    },
+    "e66b632c": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "confirmed",
+      "question": "What was my previous personal best time for the charity 5K run?",
+      "benchmark_answer": "27 minutes and 45 seconds",
+      "question_date": "2023/08/25 (Fri) 05:19",
+      "evidence": [
+        {
+          "id": "answer_ac0140ce_1:2",
+          "date": "2023/04/11 (Tue) 13:31",
+          "role": "user"
+        },
+        {
+          "id": "answer_ac0140ce_2:8",
+          "date": "2023/07/30 (Sun) 18:30",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks for the previous 5K best (27:45)"
+    },
+    "0ddfec37": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "confirmed",
+      "question": "How many autographed baseballs have I added to my collection in the first three months of collection?",
+      "benchmark_answer": "15",
+      "question_date": "2024/01/08 (Mon) 09:27",
+      "evidence": [
+        {
+          "id": "answer_a22b654d_1:0",
+          "date": "2023/07/11 (Tue) 14:38",
+          "role": "user"
+        },
+        {
+          "id": "answer_a22b654d_2:0",
+          "date": "2023/12/30 (Sat) 02:28",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks for the count in the first three months (15)"
+    },
+    "dfde3500": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "confirmed",
+      "question": "What day of the week did I meet with my previous language exchange tutor Juan?",
+      "benchmark_answer": "Wednesday",
+      "question_date": "2023/06/20 (Tue) 14:46",
+      "evidence": [
+        {
+          "id": "answer_35d6c0be_1:8",
+          "date": "2023/05/20 (Sat) 09:33",
+          "role": "user"
+        },
+        {
+          "id": "answer_35d6c0be_2:2",
+          "date": "2023/05/28 (Sun) 05:19",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks the day with the previous tutor Juan (Wednesday)"
+    },
+    "9bbe84a2": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "confirmed",
+      "question": "What was my previous goal for my Apex Legends level before I updated my goal?",
+      "benchmark_answer": "level 100",
+      "question_date": "2023/10/08 (Sun) 15:29",
+      "evidence": [
+        {
+          "id": "answer_c6a0c6c2_1:0",
+          "date": "2023/06/16 (Fri) 04:38",
+          "role": "user"
+        },
+        {
+          "id": "answer_c6a0c6c2_2:4",
+          "date": "2023/09/30 (Sat) 12:45",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks for the previous Apex Legends goal (level 100)"
+    },
+    "10e09553": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "conversion_or_evidence_issue",
+      "question": "How many largemouth bass did I catch with Alex on the earlier fishing trip to Lake Michigan before the 7/22 trip?",
+      "benchmark_answer": "7",
+      "question_date": "2023/12/06 (Wed) 11:18",
+      "evidence": [
+        {
+          "id": "answer_67be2c38_1:2",
+          "date": "2023/08/11 (Fri) 03:49",
+          "role": "user"
+        },
+        {
+          "id": "answer_67be2c38_2:2",
+          "date": "2023/11/30 (Thu) 00:28",
+          "role": "user"
+        }
+      ],
+      "rationale": "Keep previous as the question category, but remove the supersession edge: seven bass on July 10 and nine on July 22 describe distinct trips. Both remain true; their difference is not update-detection ground truth."
+    },
+    "0977f2af": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "conversion_or_evidence_issue",
+      "question": "What new kitchen gadget did I invest in before getting the Air Fryer?",
+      "benchmark_answer": "Instant Pot",
+      "question_date": "2023/05/31 (Wed) 07:54",
+      "evidence": [
+        {
+          "id": "answer_3bf5b73b_1:2",
+          "date": "2023/05/21 (Sun) 05:48",
+          "role": "user"
+        },
+        {
+          "id": "answer_3bf5b73b_2:2",
+          "date": "2023/05/21 (Sun) 22:54",
+          "role": "user"
+        }
+      ],
+      "rationale": "Keep previous as the intended category, but two appliance purchases do not invalidate one another. The Air Fryer was obtained yesterday relative to a same-day later session, so mention order alone also does not establish purchase order. No supersession; flag the event-order ambiguity."
+    },
+    "89941a94": {
+      "original_category": "previous",
+      "recommended_category": "previous",
+      "status": "conversion_or_evidence_issue",
+      "question": "Before I purchased the gravel bike, do I have other bikes in addition to my mountain bike and my commuter bike?",
+      "benchmark_answer": "Yes. (You have a road bike too.)",
+      "question_date": "2023/06/21 (Wed) 02:24",
+      "evidence": [
+        {
+          "id": "answer_e1403127_1:4",
+          "date": "2023/05/25 (Thu) 15:36",
+          "role": "user"
+        },
+        {
+          "id": "answer_e1403127_2:4",
+          "date": "2023/05/28 (Sun) 13:41",
+          "role": "user"
+        }
+      ],
+      "rationale": "The question says gravel bike, while the source says hybrid bike. It asks about prior ownership, but the newer marked turn also lists the road bike alongside the two old bikes and the newly bought hybrid. Older-only relevance can penalize useful answer evidence; adjudicate wording and evidence before scoring harm."
+    },
+    "031748ae": {
+      "original_category": "both",
+      "recommended_category": "both",
+      "status": "confirmed",
+      "question": "How many engineers do I lead when I just started my new role as Senior Software Engineer? How many engineers do I lead now?",
+      "benchmark_answer": "When you just started your new role as Senior Software Engineer, you led 4 engineers. Now, you lead 5 engineers",
+      "question_date": "2023/11/10 (Fri) 04:20",
+      "evidence": [
+        {
+          "id": "answer_8748f791_1:10",
+          "date": "2023/05/11 (Thu) 02:02",
+          "role": "user"
+        },
+        {
+          "id": "answer_8748f791_2:2",
+          "date": "2023/10/24 (Tue) 13:53",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks for both team sizes (4, then 5 engineers)"
+    },
+    "6071bd76": {
+      "original_category": "both",
+      "recommended_category": "both",
+      "status": "confirmed",
+      "question": "For the coffee-to-water ratio in my French press, did I switch to more water per tablespoon of coffee, or less?",
+      "benchmark_answer": "You switched to less water (5 ounces) per tablespoon of coffee.",
+      "question_date": "2023/07/30 (Sun) 05:53",
+      "evidence": [
+        {
+          "id": "answer_4dac77cb_1:0",
+          "date": "2023/02/11 (Sat) 11:41",
+          "role": "user"
+        },
+        {
+          "id": "answer_4dac77cb_2:0",
+          "date": "2023/06/30 (Fri) 13:14",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks the direction of change (6 -> 5 oz per tablespoon)"
+    },
+    "c4ea545c": {
+      "original_category": "both",
+      "recommended_category": "both",
+      "status": "confirmed",
+      "question": "Do I go to the gym more frequently than I did previously?",
+      "benchmark_answer": "Yes",
+      "question_date": "2023/09/01 (Fri) 19:15",
+      "evidence": [
+        {
+          "id": "answer_d3bf812b_1:4",
+          "date": "2023/06/01 (Thu) 09:48",
+          "role": "user"
+        },
+        {
+          "id": "answer_d3bf812b_2:0",
+          "date": "2023/08/15 (Tue) 20:17",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks whether the gym is more frequent than before (3 -> 4 a week)"
+    },
+    "f685340e": {
+      "original_category": "both",
+      "recommended_category": "both",
+      "status": "confirmed",
+      "question": "How often do I play tennis with my friends at the local park previously? How often do I play now?",
+      "benchmark_answer": "Previously, you play tennis with your friends at the local park every week (on Sunday). Currently, you play tennis every other week (on Sunday).",
+      "question_date": "2023/07/31 (Mon) 11:43",
+      "evidence": [
+        {
+          "id": "answer_25df025b_1:0",
+          "date": "2023/03/11 (Sat) 18:01",
+          "role": "user"
+        },
+        {
+          "id": "answer_25df025b_2:0",
+          "date": "2023/07/30 (Sun) 04:03",
+          "role": "user"
+        }
+      ],
+      "rationale": "asks for both tennis frequencies (weekly -> every other week)"
+    },
+    "c6853660": {
+      "original_category": "both",
+      "recommended_category": "both",
+      "status": "conversion_or_evidence_issue",
+      "question": "Did I mostly recently increase or decrease the limit on the number of cups of coffee in the morning?",
+      "benchmark_answer": "You increased the limit (from one cup to two cups)",
+      "question_date": "2023/06/11 (Sun) 21:37",
+      "evidence": [
+        {
+          "id": "answer_626e93c4_1:0",
+          "date": "2023/05/25 (Thu) 12:35",
+          "role": "user"
+        },
+        {
+          "id": "answer_626e93c4_2:0",
+          "date": "2023/05/26 (Fri) 19:25",
+          "role": "user"
+        }
+      ],
+      "rationale": "Both is the right category, but marked newer turn answer_626e93c4_2:0 only proposes changing to two cups. Unmarked user turn answer_626e93c4_2:6 explicitly confirms the increase. Use the confirmation as evidence/update point, rather than scoring a proposal as an enacted change."
+    },
+    "69fee5aa": {
+      "original_category": "both",
+      "recommended_category": "both",
+      "status": "conversion_or_evidence_issue",
+      "question": "How many pre-1920 American coins do I have in my collection?",
+      "benchmark_answer": "38",
+      "question_date": "2023/06/09 (Fri) 11:14",
+      "evidence": [
+        {
+          "id": "answer_d6028d6e_1:8",
+          "date": "2023/05/27 (Sat) 18:09",
+          "role": "user"
+        },
+        {
+          "id": "answer_d6028d6e_2:0",
+          "date": "2023/05/29 (Mon) 00:54",
+          "role": "user"
+        }
+      ],
+      "rationale": "Both is correct: 37 plus one gives 38. The later turn supplies an increment, not a replacement total. Archiving the earlier 37 destroys a necessary premise. Preserve both and model accumulation separately from supersession."
+    },
+    "9ea5eabc": {
+      "original_category": "latest_event",
+      "recommended_category": "latest_event",
+      "status": "conversion_or_evidence_issue",
+      "question": "Where did I go on my most recent family trip?",
+      "benchmark_answer": "Paris",
+      "question_date": "2023/06/08 (Thu) 10:33",
+      "evidence": [
+        {
+          "id": "answer_02e66dec_1:2",
+          "date": "2023/05/26 (Fri) 23:01",
+          "role": "user"
+        },
+        {
+          "id": "answer_02e66dec_2:8",
+          "date": "2023/05/28 (Sun) 04:55",
+          "role": "user"
+        }
+      ],
+      "rationale": "Latest_event is correct under the benchmark reading. Hawaii and Paris are separate trips, so remove the supersession edge. Newer mention dates are only a proxy for event order; neither event is false."
+    },
+    "41698283": {
+      "original_category": "latest_event",
+      "recommended_category": "latest_event",
+      "status": "conversion_or_evidence_issue",
+      "question": "What type of camera lens did I purchase most recently?",
+      "benchmark_answer": "a 70-200mm zoom lens",
+      "question_date": "2023/09/21 (Thu) 08:41",
+      "evidence": [
+        {
+          "id": "answer_c7ddc051_1:2",
+          "date": "2023/03/11 (Sat) 03:12",
+          "role": "user"
+        },
+        {
+          "id": "answer_c7ddc051_2:0",
+          "date": "2023/08/30 (Wed) 14:23",
+          "role": "user"
+        }
+      ],
+      "rationale": "Latest_event is correct under the benchmark reading. The 50mm and 70-200mm lens purchases can both remain true. No supersession; the newer mention supplies the intended latest purchase."
+    },
+    "7e974930": {
+      "original_category": "latest_event",
+      "recommended_category": "latest_event",
+      "status": "conversion_or_evidence_issue",
+      "question": "How much did I earn at the Downtown Farmers Market on my most recent visit?",
+      "benchmark_answer": "$420",
+      "question_date": "2023/10/26 (Thu) 11:44",
+      "evidence": [
+        {
+          "id": "answer_c9f5693c_1:2",
+          "date": "2023/04/11 (Tue) 00:10",
+          "role": "user"
+        },
+        {
+          "id": "answer_c9f5693c_2:6",
+          "date": "2023/09/30 (Sat) 15:13",
+          "role": "user"
+        }
+      ],
+      "rationale": "Latest_event is correct under the benchmark reading. Market revenues on separate visits remain true, so no supersession. Also flag that the April 11 session lists May sales as if already completed; do not claim reliable event chronology from session timestamps alone."
+    },
+    "5a4f22c0": {
+      "original_category": "context",
+      "recommended_category": "context",
+      "status": "confirmed",
+      "question": "What company is Rachel, an old colleague from my previous company, currently working at?",
+      "benchmark_answer": "TechCorp",
+      "question_date": "2023/06/21 (Wed) 13:02",
+      "evidence": [
+        {
+          "id": "answer_b0f3dfff_1:2",
+          "date": "2023/05/23 (Tue) 20:06",
+          "role": "user"
+        },
+        {
+          "id": "answer_b0f3dfff_2:0",
+          "date": "2023/05/26 (Fri) 20:48",
+          "role": "user"
+        }
+      ],
+      "rationale": "the older turn mentions Rachel but no company"
+    },
+    "618f13b2": {
+      "original_category": "exclude",
+      "recommended_category": "exclude",
+      "status": "confirmed",
+      "question": "How many times have I worn my new black Converse Chuck Taylor All Star sneakers?",
+      "benchmark_answer": "six",
+      "question_date": "2023/06/18 (Sun) 22:29",
+      "evidence": [
+        {
+          "id": "answer_caf5b52e_2:0",
+          "date": "2023/05/30 (Tue) 17:45",
+          "role": "user"
+        },
+        {
+          "id": "answer_caf5b52e_1:10",
+          "date": "2023/05/30 (Tue) 22:16",
+          "role": "user"
+        }
+      ],
+      "rationale": "Retain exclude. Cleaned timestamps put six wears at May 30 17:45 before four wears at 22:16. The oracle file orders the four-wear session before the six-wear session. Do not silently repair the cleaned data by session-name order."
+    }
+  }
+}

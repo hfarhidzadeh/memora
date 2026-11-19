@@ -1,5 +1,8 @@
 # Memora
 
+**Working name; rename before public release.** A published agent-memory
+system already uses “Memora”; see the [name review](docs/public_name_review.md).
+
 Memora is a local-first prototype for **self-evolving agent memory**. It
 demonstrates typed memory, explicit knowledge links, hybrid retrieval, and
 conservative memory pruning in a small Python package backed by SQLite.
@@ -120,8 +123,9 @@ version was linked to. `copy` writes the duplicate links when an update
 happens, so a database updated under `keep` and later searched with `copy`
 behaves like `keep`, and copied links stay whichever option later searches
 use. `topic` writes nothing and resolves links on every search. On
-LongMemEval, carrying links over helped mainly because the updated memory
-keeps its connections (see [LongMemEval](#longmemeval-knowledge-updates)).
+the provisional LongMemEval runs, carrying links over appeared to help mainly
+because the updated memory keeps its connections
+(see [LongMemEval](#longmemeval-knowledge-updates)).
 
 ## Retrieval
 
@@ -485,6 +489,12 @@ answered. Review the labels before trusting any number.
 
 ## LongMemEval: knowledge updates
 
+**Provisional results, not settled findings.** The November 19, 2026
+[review of all 70 labels](docs/longmemeval_label_review.md) found category,
+evidence, and update-semantics issues. The numbers below describe the original
+labels and conversion; they need a corrected conversion and new runs before
+being used as research conclusions.
+
 [LongMemEval](https://arxiv.org/abs/2410.10813) (Wu et al., ICLR 2025; MIT
 licence) is a public benchmark of long chat histories with questions about
 them. It contains no patient data. Memora converts it into evaluation suites:
@@ -504,20 +514,23 @@ turns (oldest first) as memories, a link between consecutive user turns of a
 session, and the question with its evidence turns as relevant. For
 knowledge-update questions, the older version of the fact is listed as stale
 and an update records that the newer turn replaces it. Those updates come
-from the benchmark's evidence labels, so they are an oracle: perfect update
-detection, which a real system would have to achieve on its own.
+from the benchmark's evidence labels. The original experiment called them an
+oracle, but the review found that evidence order does not always establish
+supersession. They are a benchmark-derived heuristic requiring correction.
 
 The newest evidence is not always the answer: some questions ask for the
 previous value or need both. The labels file gives each update question a
-category, and the converter follows it. **The labels were written by an AI
-model after reading each question; review them before relying on any
-result.**
+category, and the converter follows it. The labels were written by an AI model.
+A second AI review is recorded for every label in
+[the review ledger](eval/longmemeval_knowledge_update_label_review.json).
+The original categories are preserved to reproduce the existing results;
+recommended changes and unresolved conversion issues are recorded separately.
 
 [experiments/longmemeval_knowledge_update.py](experiments/longmemeval_knowledge_update.py)
 compares the three link options with negative and positive controls and a
 decision rule fixed before it ran. The full write-up is in
 [experiments/results/longmemeval_knowledge_update.md](experiments/results/longmemeval_knowledge_update.md).
-On the 50 questions that ask for a current value:
+In the historical runs on the 50 questions originally labelled “current”:
 
 - **Recognising updates matters most.** With the oracle updates, the current
   answer's MRR rose from 0.56 to 0.72. Without them, the outdated answer
@@ -579,8 +592,9 @@ PYTHONPATH=src python -m unittest discover -s tests -v
    groups.
 3. Tune `min_similarity` and the fusion for MiniLM on part of LongMemEval and
    test on the rest; at the defaults it lowers MRR.
-4. Review the LongMemEval labels, then extend the conversion to other question
-   types (multi-session, temporal reasoning) with their own labels.
+4. Resolve the [label review findings](docs/longmemeval_label_review.md), separate
+   answer evidence from supersession labels, and rerun the experiments before
+   extending the conversion to other question types.
 5. Build a labelled set from real (non-patient) agent sessions and compare
    configurations against their controls there too.
 6. Introduce LLM-guided consolidation behind a reviewable proposal interface.

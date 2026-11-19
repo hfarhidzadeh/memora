@@ -1,4 +1,12 @@
 {
+  "review": {
+    "status": "reviewed_pending_adjudication_and_conversion_fixes",
+    "date": "2026-11-19",
+    "reviewer": "Codex (AI)",
+    "ledger": "eval/longmemeval_knowledge_update_label_review.json",
+    "results_status": "provisional",
+    "category_changes_applied": false
+  },
   "description": "Classification of the 70 LongMemEval_S (cleaned) knowledge-update questions that have an older and a newer evidence turn. Made by an AI model on 2026-10-30 after reading each question, its answer and both evidence turns. Please review before relying on it. Categories: current = asks for the latest value of something that changed (newer turn holds the answer); previous = asks for the earlier value (older turn holds the answer); both = the answer needs both versions; latest_event = two separate events that both remain true, and the question asks for the most recent; context = the older turn holds no older value of the asked fact; exclude = data problem.",
   "labels": {
     "6a1eabeb": {"category": "current", "note": "5K personal best 27:12 -> 25:50"},

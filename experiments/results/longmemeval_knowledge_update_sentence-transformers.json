@@ -1,4 +1,6 @@
 {
+  "result_status": "provisional_pending_label_and_conversion_corrections",
+  "label_review": "docs/longmemeval_label_review.md",
   "suite": "data/longmemeval/knowledge_update.jsonl",
   "questions_current": 50,
   "questions_previous_or_both": 15,

@@ -1,5 +1,12 @@
 # Knowledge updates on LongMemEval
 
+**Status: provisional historical results.** The November 19, 2026
+[70-label review](../../docs/longmemeval_label_review.md) found three recommended
+category changes and further evidence/update-semantics issues. All numbers and
+the decision-rule verdict below use the original labels and conversion. They
+have not been recomputed and must not be treated as settled findings. The
+“oracle” is a benchmark-derived heuristic, not validated perfect update detection.
+
 **Question.** When a fact changes ("my 5K best is 27:12", later "25:50"), the
 newer memory replaces the older one. Should the older memory's links to other
 memories carry over to the newer one?
@@ -28,16 +35,18 @@ out instead:
   the user's turns (about 240 per question) as memories and links each turn
   to the user's next turn in the same session. These links come from the
   conversation's structure, not from any label.
-- **Updates are an oracle.** The benchmark marks which turns hold the
-  evidence; the newer evidence turn replaces the older one. This is perfect
-  update detection, which a real system would have to achieve on its own.
+- **Updates are benchmark-derived.** The benchmark marks which turns hold the
+  evidence; this conversion makes the newer evidence turn replace the older
+  one. The historical runs call this an oracle, but the review found invalid
+  supersession edges. It is not validated perfect update detection.
 - **Question labels are AI-written.** The 70 update questions were read and
   labelled by an AI model in
   [eval/longmemeval_knowledge_update_labels.json](../../eval/longmemeval_knowledge_update_labels.json):
   50 ask for the current value, 9 for the previous value, 6 need both, 3 ask
   for the latest of two separate events, 1 has no older value, and 1 was
   excluded because its session dates are reversed in the file. **Please
-  review these labels.**
+  see the completed [AI review](../../docs/longmemeval_label_review.md);
+  adjudication and conversion fixes remain before a new run.**
 
 ## Design
 
@@ -132,8 +141,8 @@ questions (lexical: 38%).
 
 - One benchmark, 50 primary questions; small effects are hard to detect
   (the primary comparison rests on 6 questions that changed at all).
-- Updates come from the benchmark's labels, so the update gain is a ceiling
-  for an automatic update detector.
+- Updates are inferred from benchmark evidence labels; the review found that
+  this does not establish a valid ceiling for an automatic update detector.
 - Links are only "next turn in the same session". Links with real content
   (e.g. from an extraction model) might behave differently; this experiment
   says they are not needed to explain the carry-over gain.
