@@ -344,6 +344,104 @@ class RelateTests(ClaimResolutionCase):
                 store.relate(note.id, target.id)
 
 
+class WriterSideChannelTests(unittest.TestCase):
+    """A bound writer's accepted or refused write must not depend on claims it cannot see.
+
+    Found in review on 2026-11-19: a write is refused when it would change a
+    key's scope or personal subject, or when a lapsed authority revises its
+    own delegated claim. Both checks read every claim of the key, so a hidden
+    claim (here, one drawn from a source in a channel the writer is not in)
+    changed whether the writer's own write was accepted.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.stores = 0
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def workspace(self):
+        """design: alice, bob, carol, dana (admin); dm: bob, dana; alice is not in dm."""
+        self.stores += 1
+        store = MemoryStore(Path(self.temp_dir.name) / "w{}.sqlite3".format(self.stores))
+        for member in ("alice", "bob", "carol", "dana"):
+            store.join_channel("design", member)
+        for member in ("bob", "dana"):
+            store.join_channel("dm", member)
+        store.add_admin("dana")
+        return store
+
+    @staticmethod
+    def say(store, speaker, content, *, key, source_channel="design", subject=None):
+        writer = store.for_writer(speaker)
+        message = writer.add_message(content, channel=source_channel)
+        return writer.add_memory(
+            content, FACT, channel="design", memory_key=key, fact_subject=subject,
+            source_message_ids=[message.id],
+        )
+
+    def outcome(self, store, speaker, content, *, key, subject=None):
+        try:
+            self.say(store, speaker, content, key=key, subject=subject)
+        except ValueError as error:
+            return "refused: {}".format(error)
+        return "ok"
+
+    def test_a_hidden_personal_claim_does_not_change_a_scope_refusal(self):
+        with_hidden, without = self.workspace(), self.workspace()
+        # bob reports on carol from the dm, which alice cannot see.
+        self.say(with_hidden, "bob", "Carol prefers tea", key="drink",
+                 source_channel="dm", subject="carol")
+
+        results = [
+            self.outcome(store, "alice", "Team prefers coffee", key="drink")
+            for store in (with_hidden, without)
+        ]
+
+        self.assertEqual(results[0], results[1])
+        self.assertEqual(results[0], "ok")
+
+    def test_a_visible_personal_claim_still_refuses_a_scope_change(self):
+        # Control: passed before the fix.
+        results = []
+        for source_channel in ("design",):
+            store = self.workspace()
+            self.say(store, "bob", "Carol prefers tea", key="drink",
+                     source_channel=source_channel, subject="carol")
+            results.append(self.outcome(store, "alice", "Team prefers coffee", key="drink"))
+        self.assertIn("scope or personal subject", results[0])
+
+    def delegate(self, store):
+        store.grant_delegation("design", "review", "alice", granted_by="dana")
+        self.say(store, "alice", "Review is Thursday", key="review")
+        store.revoke_delegation("design", "review", "alice", revoked_by="dana")
+
+    def test_a_hidden_admin_claim_does_not_change_a_lapsed_authority_refusal(self):
+        with_hidden, without = self.workspace(), self.workspace()
+        for store in (with_hidden, without):
+            self.delegate(store)
+        # dana's claim replaces alice's, but only for people who can see it.
+        self.say(with_hidden, "dana", "Review is Monday", key="review", source_channel="dm")
+
+        results = [
+            self.outcome(store, "alice", "Review is Friday", key="review")
+            for store in (with_hidden, without)
+        ]
+
+        self.assertEqual(results[0], results[1])
+        self.assertIn("lapsed authority", results[0])
+
+    def test_a_visible_admin_claim_lets_a_lapsed_delegate_write_again(self):
+        # Control: passed before the fix. When everyone can see the admin's
+        # claim, it has replaced the delegate's, so nothing lapsed is revised.
+        store = self.workspace()
+        self.delegate(store)
+        self.say(store, "dana", "Review is Monday", key="review")
+
+        self.assertEqual(self.outcome(store, "alice", "Review is Friday", key="review"), "ok")
+
+
 class ReadTimeResolutionTests(ClaimResolutionCase):
     """What changes, besides the two fixes, once channel claims resolve at read time."""
 

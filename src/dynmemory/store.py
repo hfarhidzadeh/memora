@@ -1163,10 +1163,18 @@ class MemoryStore:
                             (now, now, previous["id"]),
                         )
             elif memory_key is not None:
+                # A bound writer is judged only on claims it can see: a refusal
+                # that depended on a hidden claim would tell it that one exists.
+                # Trusted store calls see every claim that is not stale.
+                writer_view = (speaker,) if check_membership else None
+                visible, visible_parameters = self._visible(writer_view)
                 if connection.execute(
                     """SELECT 1 FROM memories WHERE memory_key = ? AND channel = ?
-                    AND fact_subject IS NOT ? LIMIT 1""",
-                    (memory_key, channel, fact_subject),
+                    AND fact_subject IS NOT ?{} LIMIT 1""".format(
+                        visible if check_membership else ""
+                    ),
+                    [memory_key, channel, fact_subject]
+                    + (visible_parameters if check_membership else []),
                 ).fetchone():
                     raise ValueError("claim scope or personal subject differs from key history")
                 rank = self._claim_rank({
@@ -1174,12 +1182,11 @@ class MemoryStore:
                     "asserted_as_admin": asserted_as_admin,
                     "asserted_as_delegate": asserted_as_delegate,
                 })
-                # The administrative view: every claim of the key that is not stale.
                 standing = self._replay(connection.execute(
                     """SELECT {} FROM memories
-                    WHERE channel = ? AND memory_key = ? AND stale_at IS NULL
-                    ORDER BY created_at, rowid""".format(self._CLAIM_COLUMNS),
-                    (channel, memory_key),
+                    WHERE channel = ? AND memory_key = ?{}
+                    ORDER BY created_at, rowid""".format(self._CLAIM_COLUMNS, visible),
+                    [channel, memory_key] + visible_parameters,
                 ).fetchall())[1]
                 if any(
                     claim["speaker"] == speaker

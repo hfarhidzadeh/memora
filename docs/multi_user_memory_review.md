@@ -776,10 +776,8 @@ Tests are in [test_claim_resolution.py](../tests/test_claim_resolution.py):
 - 4 tests of the new behaviour.
 
 Twelve deliberate faults in the new code were each caught by these tests.
-None of this is yet covered by a many-trial experiment. One write-side signal
-remains: a write that would change a key's scope or personal subject is
-refused after checking the key's whole history, so the refusal can reveal to
-the writer that a claim they cannot see exists.
+The read side is covered by the experiments below. Two write-side signals
+remained and are closed in the 2026-11-19 entry at the end of this list.
 
 **Noninterference experiment, version 2, 2026-11-18.** Script:
 [audience_noninterference.py](../experiments/audience_noninterference.py).
@@ -871,6 +869,37 @@ each.
     so the task sits at its ceiling. The test shows that the built path drops
     and misorders no visible memory. It has little power to detect a subtler
     ranking cost, and it used lexical search only, with no links or keys.
+
+**Write outcomes of bound writers, 2026-11-19.** Review found that two write
+checks read every claim of a key: the refusal of a change of scope or personal
+subject, and the refusal of a lapsed authority revising its own delegated
+claim. A hidden claim therefore changed whether a writer's own write was
+accepted, which tells the writer the claim exists.
+
+- **Fix:** for a bound writer both checks read only the claims that writer can
+  see. Trusted store calls keep the full view. Two regression tests failed
+  before the change and pass after it, with two controls that passed in both.
+- **Experiment** ([audience_write_outcomes.py](../experiments/audience_write_outcomes.py),
+  [results](../experiments/results/audience_write_outcomes.md)), written with
+  its decision rule and validation criterion fixed before any run. Bound
+  writers alice and carol cannot see claims drawn from a direct message that
+  bob and dana share; world H adds such claims, W omits them, and V (positive
+  control) makes them visible. 500 pairs, with delegation, personal facts and
+  an admin.
+- **Current store:** every visible write outcome and every read of H equalled
+  W in all 500 pairs ("the write path passes"). Controls held: H rebuilt equal
+  in 500, V differed from W in 485 (97%).
+- **Validation:** the same script on the store before the fix (commit
+  5809ca9) failed rule 3 in 160 of 500 pairs (32%, above the 25% fixed in
+  advance), always through a visible write whose outcome differed. Both
+  reports state schema version 6, since the schema did not change; the
+  commit identifies the store.
+- **Coverage:** the lapsed-authority path appeared in only 5 of those 160
+  failing pairs, against 159 for the scope path. The experiment therefore
+  validates the scope fix well and the lapsed-authority fix weakly; its
+  regression test is the stronger evidence for that one.
+- **Not exercised:** retractions, pruning, `restore`, other admins, and
+  delegation by anyone but dana to anyone but alice.
 
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.

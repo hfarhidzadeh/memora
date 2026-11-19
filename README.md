@@ -265,9 +265,12 @@ Limits:
 - The store does not authenticate identities. `add_admin`, membership changes,
   direct administrative writes, and the SQLite file require trusted code.
 - Access counts and pruning are shared by everyone in the store.
-- A write that would change a key's scope or personal subject is refused
-  after checking the key's whole history, so the refusal can reveal to the
-  writer that a claim they cannot see exists.
+- A bound writer's writes are judged only on the claims that writer can see:
+  the refusal of a change of a key's scope or personal subject, and of a
+  lapsed authority revising its own claim, cannot reveal a hidden claim.
+  Trusted calls through the store itself still check every claim. A key can
+  therefore hold claims of different scope when some are hidden from the
+  writer; reads resolve each claim by its own authority.
 - A standalone dispute table and automatic regeneration of stale derivations
   are not implemented. The broader design is in
   [docs/multi_user_memory_review.md](docs/multi_user_memory_review.md).
