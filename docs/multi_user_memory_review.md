@@ -838,6 +838,40 @@ Run 1 results are in
   delegation, personal facts, pruning, `restore` and bound writers. The only
   admin writes only hidden memories.
 
+**Link-path and utility experiments, first runs, 2026-11-19.** Both were
+written on 2026-11-15 with their decision rules fixed, and had never been run.
+They were run unchanged on the current store (schema version 6), 200 trials
+each.
+
+- **Paths 2 to 4** ([audience_link_paths.py](../experiments/audience_link_paths.py),
+  [results](../experiments/results/audience_link_paths.md)):
+  - Graph hop, contradiction flags and topic carry-over each gave the same
+    pattern. The probe fired in the positive control in every trial and arm,
+    the negative controls never fired, and filtering after ranking leaked in
+    200 of 200 `present` trials. (For contradiction flags only the naive
+    version leaked; the careful one trims links and did not, as predicted.)
+  - The built path never leaked, and its results equalled those of filtering
+    before ranking in all 2,800 trial-world pairs. Verdict for each path:
+    "the baseline leaks; the built path closes it".
+  - One wording in the design is out of date. It says `copy` mode copies a
+    link to the new version at the rewrite. Since read-time resolution,
+    channel memories carry links at read time instead. The `copy`
+    predictions, which are not part of the verdict, held either way.
+- **H1, zero leakage at no utility cost**
+  ([audience_utility.py](../experiments/audience_utility.py),
+  [results](../experiments/results/audience_utility.md)):
+  - Controls held. The pooled store leaked 9,010 of 9,010 canary items.
+    Owners found their own canaries every time, and every canary in the shared
+    channel reached every member.
+  - The built path and both filter-after arms leaked nothing.
+  - The built path's utility equalled filtering after the whole ranking in
+    all 200 trials (mean difference in reciprocal rank 0.0000, CI 0.0000 to
+    0.0000). Verdict: "H1 supported".
+  - Caveat: all three filtered arms reached a mean reciprocal rank of 1.0000,
+    so the task sits at its ceiling. The test shows that the built path drops
+    and misorders no visible memory. It has little power to detect a subtler
+    ranking cost, and it used lexical search only, with no links or keys.
+
 - **Visibility:** a memory is visible if every viewer is a current member of
   its channel. A memory without a channel is visible to no viewer.
 - **All four paths:** the visible set is computed first and passed to every
@@ -851,9 +885,10 @@ Run 1 results are in
 - **Tests:** paths 2 to 4, the fused lexical and vector ranking, joiners and
   leavers are covered by unit tests in
   [test_audience.py](../tests/test_audience.py), each with a positive control
-  (a member of both channels does see the link). They are not yet covered by
-  an experiment with many trials. Sixteen deliberate faults put into the
-  store, one at a time, were each caught by these tests.
+  (a member of both channels does see the link). Since 2026-11-19 paths 2
+  to 4 are also covered by an experiment with many trials (see the link-path
+  entry above). Sixteen deliberate faults put into the store, one at a time,
+  were each caught by these tests.
 - **Not built:** write authentication, a standalone dispute table, automatic
   regeneration of stale derivations, physical erasure and who-knows-what.
   A read without `viewers` uses every

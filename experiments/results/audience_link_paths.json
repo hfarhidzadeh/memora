@@ -1,0 +1,539 @@
+{
+  "trials": 200,
+  "paths": [
+    "graph",
+    "dispute",
+    "topic"
+  ],
+  "worlds": {
+    "graph": [
+      "absent",
+      "present",
+      "shared",
+      "unlinked"
+    ],
+    "dispute": [
+      "absent",
+      "present",
+      "shared",
+      "unlinked"
+    ],
+    "topic": [
+      "absent",
+      "present",
+      "shared",
+      "unlinked",
+      "present-keep",
+      "present-copy"
+    ]
+  },
+  "arms": [
+    "after-naive",
+    "after-careful",
+    "built",
+    "before"
+  ],
+  "settings": {
+    "vocabulary": 500,
+    "words_per_memory": 12,
+    "visible_background": 150,
+    "hidden_background": 50,
+    "background_links": 40,
+    "limit": 10,
+    "needed_share": 0.95
+  },
+  "summary": {
+    "graph": {
+      "worlds": {
+        "absent": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "present": {
+          "after-naive": {
+            "p": 200,
+            "l": 200
+          },
+          "after-careful": {
+            "p": 200,
+            "l": 200
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "shared": {
+          "after-naive": {
+            "p": 200,
+            "l": 200
+          },
+          "after-careful": {
+            "p": 200,
+            "l": 200
+          },
+          "built": {
+            "p": 200,
+            "l": 200
+          },
+          "before": {
+            "p": 200,
+            "l": 200
+          }
+        },
+        "unlinked": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        }
+      },
+      "comparisons": 800,
+      "built_differs_from_before": 0,
+      "built_leaks_where_before_does_not": 0,
+      "first_failing_seed": null,
+      "failures": [],
+      "hidden_memories_in_before_stores": 0,
+      "fewest_hidden_memories_in_full_store": 50,
+      "present_leaks_by_setting": {
+        "mode": {
+          "copy": {
+            "trials": 70,
+            "after-naive": 70,
+            "after-careful": 70,
+            "built": 0,
+            "before": 0
+          },
+          "keep": {
+            "trials": 64,
+            "after-naive": 64,
+            "after-careful": 64,
+            "built": 0,
+            "before": 0
+          },
+          "topic": {
+            "trials": 66,
+            "after-naive": 66,
+            "after-careful": 66,
+            "built": 0,
+            "before": 0
+          }
+        },
+        "relation": {
+          "related_to": {
+            "trials": 45,
+            "after-naive": 45,
+            "after-careful": 45,
+            "built": 0,
+            "before": 0
+          },
+          "contradicts": {
+            "trials": 58,
+            "after-naive": 58,
+            "after-careful": 58,
+            "built": 0,
+            "before": 0
+          },
+          "depends_on": {
+            "trials": 56,
+            "after-naive": 56,
+            "after-careful": 56,
+            "built": 0,
+            "before": 0
+          },
+          "supports": {
+            "trials": 41,
+            "after-naive": 41,
+            "after-careful": 41,
+            "built": 0,
+            "before": 0
+          }
+        }
+      }
+    },
+    "dispute": {
+      "worlds": {
+        "absent": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "present": {
+          "after-naive": {
+            "p": 200,
+            "l": 200
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "shared": {
+          "after-naive": {
+            "p": 200,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 200,
+            "l": 0
+          },
+          "built": {
+            "p": 200,
+            "l": 0
+          },
+          "before": {
+            "p": 200,
+            "l": 0
+          }
+        },
+        "unlinked": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        }
+      },
+      "comparisons": 800,
+      "built_differs_from_before": 0,
+      "built_leaks_where_before_does_not": 0,
+      "first_failing_seed": null,
+      "failures": [],
+      "hidden_memories_in_before_stores": 0,
+      "fewest_hidden_memories_in_full_store": 50,
+      "present_leaks_by_setting": {
+        "mode": {
+          "copy": {
+            "trials": 75,
+            "after-naive": 75,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          },
+          "topic": {
+            "trials": 69,
+            "after-naive": 69,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          },
+          "keep": {
+            "trials": 56,
+            "after-naive": 56,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          }
+        },
+        "kind_filter": {
+          "none": {
+            "trials": 100,
+            "after-naive": 100,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          },
+          "fact": {
+            "trials": 100,
+            "after-naive": 100,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          }
+        },
+        "disputant_kind": {
+          "fact": {
+            "trials": 118,
+            "after-naive": 118,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          },
+          "correction": {
+            "trials": 82,
+            "after-naive": 82,
+            "after-careful": 0,
+            "built": 0,
+            "before": 0
+          }
+        }
+      }
+    },
+    "topic": {
+      "worlds": {
+        "absent": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "present": {
+          "after-naive": {
+            "p": 200,
+            "l": 200
+          },
+          "after-careful": {
+            "p": 200,
+            "l": 200
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "shared": {
+          "after-naive": {
+            "p": 200,
+            "l": 200
+          },
+          "after-careful": {
+            "p": 200,
+            "l": 200
+          },
+          "built": {
+            "p": 200,
+            "l": 200
+          },
+          "before": {
+            "p": 200,
+            "l": 200
+          }
+        },
+        "unlinked": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "present-keep": {
+          "after-naive": {
+            "p": 0,
+            "l": 0
+          },
+          "after-careful": {
+            "p": 0,
+            "l": 0
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        },
+        "present-copy": {
+          "after-naive": {
+            "p": 200,
+            "l": 200
+          },
+          "after-careful": {
+            "p": 200,
+            "l": 200
+          },
+          "built": {
+            "p": 0,
+            "l": 0
+          },
+          "before": {
+            "p": 0,
+            "l": 0
+          }
+        }
+      },
+      "comparisons": 1200,
+      "built_differs_from_before": 0,
+      "built_leaks_where_before_does_not": 0,
+      "first_failing_seed": null,
+      "failures": [],
+      "hidden_memories_in_before_stores": 0,
+      "fewest_hidden_memories_in_full_store": 50,
+      "present_leaks_by_setting": {
+        "relation": {
+          "depends_on": {
+            "trials": 40,
+            "after-naive": 40,
+            "after-careful": 40,
+            "built": 0,
+            "before": 0
+          },
+          "related_to": {
+            "trials": 50,
+            "after-naive": 50,
+            "after-careful": 50,
+            "built": 0,
+            "before": 0
+          },
+          "contradicts": {
+            "trials": 52,
+            "after-naive": 52,
+            "after-careful": 52,
+            "built": 0,
+            "before": 0
+          },
+          "supports": {
+            "trials": 58,
+            "after-naive": 58,
+            "after-careful": 58,
+            "built": 0,
+            "before": 0
+          }
+        }
+      }
+    }
+  },
+  "decision": {
+    "graph": {
+      "rule_1_probe_works": true,
+      "rule_2_negative_controls_hold": true,
+      "rule_3_baseline_leaks": true,
+      "rule_4_built_never_leaks_where_before_does_not": true,
+      "rule_4_built_equals_before": true,
+      "rule_4_built_closes": true,
+      "predictions": [
+        {
+          "statement": "after-careful leaks in at least 95% of `present` trials",
+          "count": 200,
+          "held": true
+        }
+      ],
+      "verdict": "the baseline leaks through graph",
+      "verdict_on_the_built_path": "the built path closes graph"
+    },
+    "dispute": {
+      "rule_1_probe_works": true,
+      "rule_2_negative_controls_hold": true,
+      "rule_3_baseline_leaks": true,
+      "rule_4_built_never_leaks_where_before_does_not": true,
+      "rule_4_built_equals_before": true,
+      "rule_4_built_closes": true,
+      "predictions": [
+        {
+          "statement": "after-careful leaks in 0% of `present` trials",
+          "count": 0,
+          "held": true
+        }
+      ],
+      "verdict": "the baseline leaks through dispute",
+      "verdict_on_the_built_path": "the built path closes dispute"
+    },
+    "topic": {
+      "rule_1_probe_works": true,
+      "rule_2_negative_controls_hold": true,
+      "rule_3_baseline_leaks": true,
+      "rule_4_built_never_leaks_where_before_does_not": true,
+      "rule_4_built_equals_before": true,
+      "rule_4_built_closes": true,
+      "predictions": [
+        {
+          "statement": "after-careful leaks in at least 95% of `present` trials",
+          "count": 200,
+          "held": true
+        },
+        {
+          "statement": "after-naive leaks in at least 95% of `present-copy` trials",
+          "count": 200,
+          "held": true
+        },
+        {
+          "statement": "after-careful leaks in at least 95% of `present-copy` trials",
+          "count": 200,
+          "held": true
+        }
+      ],
+      "verdict": "the baseline leaks through topic",
+      "verdict_on_the_built_path": "the built path closes topic"
+    }
+  }
+}
