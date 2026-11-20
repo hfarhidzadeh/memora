@@ -963,6 +963,41 @@ rows kept the retracted text, and `stale_memories()` returned it.
   scrubbed, and not scanned here), or the filesystem's own remnants. The
   experiment scans live rows and the raw database file only.
 
+**Real-text shared workspaces (Stage B), 2026-11-20.** The access rules had
+only been tested on text written for the tests. Script:
+`experiments/longmemeval_shared_workspace.py`; report:
+`experiments/results/longmemeval_shared_workspace.md`. It treats several
+LongMemEval question histories as one workspace: each member has a private
+channel, plus a shared channel and a team channel holding real questions,
+churn (a late joiner, a leaver), canaries of invented words, an outsider
+memory and cross-channel `related_to` and `contradicts` links. The design,
+decision rule and validation criteria were fixed in the script's docstring
+before any run. Cross-user disputes are not tested; they wait for the human
+label review.
+
+- **Result:** 601 workspaces, 18,177 reads. Leakage 0 (ranking, links,
+  `list_memories`, `get_memory`); every ranking matched a reference store
+  built from the experiment's own visibility record (523 of 523 also matched
+  single-user stores); 0 of 2,704 visible canaries missed. All five controls
+  held, including a leak probe that, without access control, showed a hidden
+  memory in 100% of other-user questions.
+- **Faults:** six injected faults (ignore-private, union, overblock-joiner,
+  links-ignore, filter-after, speaker-sees) each produced their pre-registered
+  failure pattern. Two predictions were wrong while the tests were being
+  written, before any real run: the links fault was invisible through search
+  until both link-side checks were removed (two independent filters guard that
+  path), and speaker-sees leaks the outsider's own item, not only outsider items.
+- **Utility:** filtering before ranking costs owners a little. RR@10 built
+  0.6464 against 0.6568 for filtering after (difference -0.0104, 95% interval
+  -0.0172 to -0.0036, inside the pre-registered -0.02 margin). It beats
+  filtering after the top 10 (hit@10 0.852 against 0.786).
+- **Limits:** real text but invented access structure. Not tested:
+  near-duplicate text, retraction and rebuild on this data, the
+  `record_access` side channel, cross-user disputes. In 120 of 3,453 text-answer
+  items the answer text appears in another user's top 10 (1,032 without access
+  control); some may be legitimate coincidence. Nobody has yet spot-checked
+  the other-user results by hand, which the researcher's rules require.
+
 **The remaining "not built" items, 2026-11-19.** Asked to solve all of them,
 the model built each one up to where a human decision is needed.
 

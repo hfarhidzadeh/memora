@@ -1,0 +1,316 @@
+{
+  "store_schema_version": 7,
+  "fault": "speaker-sees",
+  "arguments": {
+    "data": "/Users/hamidfarhid/Downloads/Research/data/longmemeval/longmemeval_s_cleaned.json",
+    "seeds": "1",
+    "workspaces": "4",
+    "bare": "0",
+    "hybrid": "0",
+    "k1": "0",
+    "jobs": "4",
+    "fault": "speaker-sees",
+    "no_determinism": "True",
+    "digest": "False"
+  },
+  "summary": {
+    "totals": {
+      "leak": 22619,
+      "link_leak": 20921,
+      "list_in": 20349,
+      "get_in": 220,
+      "list_out": 0,
+      "get_out": 0,
+      "canary_missed": 0,
+      "canary_items": 64,
+      "reads": 408,
+      "placement_errors": 0,
+      "plan_errors": 0,
+      "pooled_other": 96,
+      "pooled_other_hidden": 96,
+      "pooled_other_informative": 81,
+      "pooled_canary": 168,
+      "pooled_canary_rank1": 168,
+      "holds_copy": 0,
+      "other_items": 96
+    },
+    "classes": {
+      "exact": 300,
+      "order": 96,
+      "score-only": 12
+    },
+    "kinds": {
+      "shared-pre": 4,
+      "shared-joiner-pre": 4,
+      "owner": 32,
+      "other": 96,
+      "mixed": 32,
+      "shared": 28,
+      "shared-left": 4,
+      "shared-mixed": 4,
+      "team": 16,
+      "team-outside": 12,
+      "team-mixed": 4,
+      "team-mixed-out": 4,
+      "canary-own": 32,
+      "canary-other": 96,
+      "canary-general": 28,
+      "canary-general-left": 4,
+      "outsider-self": 4,
+      "outsider-owner": 4
+    },
+    "families": {
+      "full": 4
+    },
+    "answer": {
+      "items": 60,
+      "built": 0,
+      "pooled": 12
+    },
+    "first_failure": {
+      "1": {
+        "family": "full",
+        "seed": 0,
+        "workspace": 0,
+        "item": "owner#0"
+      },
+      "2": {
+        "family": "full",
+        "seed": 0,
+        "workspace": 0,
+        "item": "owner#0"
+      }
+    },
+    "controls": {
+      "1": null,
+      "2": true,
+      "3": true,
+      "4": null,
+      "5": true
+    },
+    "k1_harness": {
+      "exact": 0,
+      "total": 0
+    },
+    "utility": {
+      "questions": 32,
+      "items": 32,
+      "arms": {
+        "built": {
+          "rr": 0.6328125,
+          "hit10": 0.875,
+          "hit5": 0.875
+        },
+        "after_all": {
+          "rr": 0.625,
+          "hit10": 0.875,
+          "hit5": 0.875
+        },
+        "after_k": {
+          "rr": 0.609375,
+          "hit10": 0.84375,
+          "hit5": 0.84375
+        },
+        "pooled": {
+          "rr": 0.555109126984127,
+          "hit10": 0.84375,
+          "hit5": 0.75
+        }
+      },
+      "differs_share": 0.96875,
+      "built_minus_after_all": {
+        "mean": 0.0078125,
+        "low": -0.03125,
+        "high": 0.0546875
+      },
+      "built_minus_after_k": {
+        "mean": 0.0234375,
+        "low": -0.0234375,
+        "high": 0.078125
+      }
+    },
+    "vocabulary_clashes": 0
+  },
+  "decision": {
+    "rule_1": false,
+    "rule_2": false,
+    "rule_3": true,
+    "utility": "unclear",
+    "controls": {
+      "1": null,
+      "2": true,
+      "3": true,
+      "4": null,
+      "5": true
+    },
+    "verdict": "fails (rules 1, 2 failed, first failing full seed 0 workspace 0 item owner#0)"
+  },
+  "validation": {
+    "fault": "speaker-sees",
+    "workspaces": 4,
+    "pattern_held": 4,
+    "holds": true
+  },
+  "per_workspace": [
+    {
+      "family": "full",
+      "seed": 0,
+      "index": 0,
+      "reads": 102,
+      "leak": 5574,
+      "link_leak": 5209,
+      "list_in": 4877,
+      "get_in": 46,
+      "list_out": 0,
+      "get_out": 0,
+      "canary_missed": 0,
+      "classes": {
+        "exact": 78,
+        "order": 21,
+        "score-only": 3
+      },
+      "failures": [
+        {
+          "item": "owner#0",
+          "what": "not exact: order"
+        },
+        {
+          "item": "mixed#4",
+          "what": "leak 520 link 485"
+        },
+        {
+          "item": "mixed#4",
+          "what": "not exact: order"
+        },
+        {
+          "item": "other#7",
+          "what": "leak 31 link 6"
+        },
+        {
+          "item": "other#7",
+          "what": "not exact: order"
+        }
+      ]
+    },
+    {
+      "family": "full",
+      "seed": 0,
+      "index": 1,
+      "reads": 102,
+      "leak": 5622,
+      "link_leak": 5176,
+      "list_in": 4848,
+      "get_in": 55,
+      "list_out": 0,
+      "get_out": 0,
+      "canary_missed": 0,
+      "classes": {
+        "exact": 73,
+        "order": 26,
+        "score-only": 3
+      },
+      "failures": [
+        {
+          "item": "mixed#4",
+          "what": "leak 454 link 450"
+        },
+        {
+          "item": "mixed#4",
+          "what": "not exact: order"
+        },
+        {
+          "item": "other#6",
+          "what": "not exact: order"
+        },
+        {
+          "item": "mixed#9",
+          "what": "leak 461 link 456"
+        },
+        {
+          "item": "mixed#9",
+          "what": "not exact: order"
+        }
+      ]
+    },
+    {
+      "family": "full",
+      "seed": 0,
+      "index": 2,
+      "reads": 102,
+      "leak": 5807,
+      "link_leak": 5274,
+      "list_in": 5311,
+      "get_in": 62,
+      "list_out": 0,
+      "get_out": 0,
+      "canary_missed": 0,
+      "classes": {
+        "exact": 73,
+        "order": 26,
+        "score-only": 3
+      },
+      "failures": [
+        {
+          "item": "other#3",
+          "what": "leak 39 link 6"
+        },
+        {
+          "item": "other#3",
+          "what": "not exact: order"
+        },
+        {
+          "item": "mixed#4",
+          "what": "leak 531 link 492"
+        },
+        {
+          "item": "mixed#4",
+          "what": "not exact: order"
+        },
+        {
+          "item": "other#8",
+          "what": "leak 28 link 6"
+        }
+      ]
+    },
+    {
+      "family": "full",
+      "seed": 0,
+      "index": 3,
+      "reads": 102,
+      "leak": 5616,
+      "link_leak": 5262,
+      "list_in": 5313,
+      "get_in": 57,
+      "list_out": 0,
+      "get_out": 0,
+      "canary_missed": 0,
+      "classes": {
+        "exact": 76,
+        "order": 23,
+        "score-only": 3
+      },
+      "failures": [
+        {
+          "item": "mixed#4",
+          "what": "leak 471 link 468"
+        },
+        {
+          "item": "mixed#4",
+          "what": "not exact: order"
+        },
+        {
+          "item": "other#6",
+          "what": "not exact: order"
+        },
+        {
+          "item": "mixed#9",
+          "what": "leak 464 link 460"
+        },
+        {
+          "item": "mixed#9",
+          "what": "not exact: order"
+        }
+      ]
+    }
+  ]
+}

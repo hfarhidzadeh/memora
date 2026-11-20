@@ -342,6 +342,16 @@ the viewer's own channel (positive control). The data were written alongside
 the code, so this shows the mechanism, not how often it matters in real use.
 Results: `experiments/results/audience_side_channel.md`.
 
+On real text, `experiments/longmemeval_shared_workspace.py` treats LongMemEval
+question histories as shared workspaces (private, shared and team channels,
+a joiner and a leaver, canaries, cross-channel links). Over 601 workspaces and
+18,177 reads there were no leaks, every ranking matched a reference store built
+from the experiment's own visibility record, and no visible item was blocked.
+Six injected faults were each caught. Filtering before ranking costs owners
+0.010 RR@10 against filtering after (interval -0.017 to -0.004). The access
+structure is invented, and a human spot-check of the other-user results has not
+been done. Results: `experiments/results/longmemeval_shared_workspace.md`.
+
 ```bash
 python3 -I experiments/audience_side_channel.py
 ```

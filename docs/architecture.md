@@ -278,6 +278,8 @@ back whatever it had replaced. The experiments in
 [audience_noninterference.py](../experiments/audience_noninterference.py),
 [audience_write_outcomes.py](../experiments/audience_write_outcomes.py) and
 the others listed below test this.
+[longmemeval_shared_workspace.py](../experiments/longmemeval_shared_workspace.py)
+repeats the visibility checks on real LongMemEval text.
 
 ## Pruning
 
