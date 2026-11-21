@@ -631,6 +631,8 @@ def run_workspace(
         "pooled_canary_rank1": 0, "answer": {"items": 0, "built": 0, "pooled": 0},
         "holds_copy": 0, "other_items": 0, "kinds": {}, "failures": [],
     }
+    if COLLECT_HITS:
+        result["hits"] = []
     CURRENT["joiner"] = plan["joiner"]
     store = MemoryStore(":memory:")
     pooled_cache, ref_cache, built_cache, audit_done = {}, {}, {}, set()
@@ -789,6 +791,9 @@ def run_workspace(
                             needle in plan["content"][label].lower() for label in ranked[:DEPTH])
                         result["answer"]["pooled"] += any(
                             needle in plan["content"][label].lower() for label in pooled_labels[:DEPTH])
+                        if COLLECT_HITS:
+                            result["hits"].append(hit_record(
+                                plan, it, parsed, needle, ranked[:DEPTH], pooled_labels[:DEPTH], visible))
                 if it["kind"] == "owner":
                     after_all = [label for label in pooled_labels if label in visible][:DEPTH]
                     after_k = [label for label in pooled_labels[:DEPTH] if label in visible]
@@ -813,6 +818,27 @@ def run_workspace(
         store.close()
         CURRENT["joiner"] = None
     return result
+
+
+COLLECT_HITS = False  # the spot-check builder switches this on; results are unchanged
+
+
+def hit_record(plan, it, parsed, needle, built_top, pooled_top, visible) -> dict:
+    """What a human needs to judge one other-user item with a text answer."""
+    owner_question = parsed[plan["owner_question"][it["owner"]]]
+    def first_match(top):
+        for rank, label in enumerate(top, start=1):
+            if needle in plan["content"][label].lower():
+                return {"rank": rank, "label": label, "channel": plan["channel_of"][label],
+                        "speaker": plan["speaker_of"].get(label), "visible": label in visible,
+                        "text": plan["content"][label]}
+        return None
+    return {
+        "item": it["id"], "asker": it["audience"][0], "owner": it["owner"],
+        "question": owner_question["question"], "answer": owner_question["answer"],
+        "evidence": [plan["content"][label] for label in it["gold"]],
+        "built": first_match(built_top), "pooled": first_match(pooled_top),
+    }
 
 
 def digest(result: dict) -> str:
