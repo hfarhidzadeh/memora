@@ -349,8 +349,9 @@ a joiner and a leaver, canaries, cross-channel links). Over 601 workspaces and
 from the experiment's own visibility record, and no visible item was blocked.
 Six injected faults were each caught. Filtering before ranking costs owners
 0.010 RR@10 against filtering after (interval -0.017 to -0.004). The access
-structure is invented, and a human spot-check of the other-user results has not
-been done. Results: `experiments/results/longmemeval_shared_workspace.md`.
+structure is invented. A blind human spot-check of 40 of the 120 other-user
+answer-text hits found no leak (controls valid; see
+`experiments/results/spot_check/outcome.md`), but 80 were not reviewed. Results: `experiments/results/longmemeval_shared_workspace.md`.
 
 ```bash
 python3 -I experiments/audience_side_channel.py

@@ -998,6 +998,29 @@ label review.
   control); some may be legitimate coincidence. Nobody has yet spot-checked
   the other-user results by hand, which the researcher's rules require.
 
+**Human spot-check of the Stage B other-user results, 2026-11-21.** The
+researcher labelled a blind sheet of 60 rows built by
+`experiments/spot_check_sheet.py` (design and reading rule fixed in its
+docstring): 40 of the 120 other-user items whose real top 10 contains the
+owner's answer text, mixed with 20 known owner-content controls from the
+unfiltered ranking. The question was whether the matching memory is the
+owner's private conversation.
+
+- **Labels valid:** 18 of 20 controls labelled `owner` (90% required).
+- **Built rows:** 34 `other`, 5 `unsure`, 1 `owner`. The model then traced the
+  six rows needing a second look (the `owner` row and the five `unsure`
+  ones) against the store. None was a leak. Each matched memory was visible to
+  its asker (their own private channel, or a shared or team channel they
+  belong to), existed only once in the workspace, and was not a copy of the
+  owner's evidence. Different LongMemEval histories sometimes state the same
+  fact (a play, a city, a degree, a cat's name). The one `owner` label (R55)
+  was a fair reading of the sheet, since the text resembles the owner's
+  evidence; the trace showed it came from the asker's own history. The
+  researcher's labels were left unedited.
+- **Reading:** 0 of 40 sampled hits were leaks. This agrees with the 18,177
+  automated reads, and is a sample of a third of the hits, not proof about all
+  120. The other 80 were not reviewed.
+
 **The remaining "not built" items, 2026-11-19.** Asked to solve all of them,
 the model built each one up to where a human decision is needed.
 
